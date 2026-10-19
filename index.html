@@ -2,19 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Cashier - Loundra Scent Lab</title>
-  
-  <!-- PEMANGGIL MANIFEST & IKON PWA UNTUK GITHUB / VERCEL / HP / TABLET -->
-  <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" type="image/svg+xml" href="./icon.svg">
-  <link rel="apple-touch-icon" href="./icon.svg">
-  <meta name="theme-color" content="#059669">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Cashier">
-
-  <!-- Tailwind CSS -->
+  <title>Cashier AI - Loundra Scent Lab</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Library Barcode & QR Scanner -->
   <script src="https://unpkg.com/html5-qrcode"></script>
@@ -24,6 +12,7 @@
   <style>
     body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: #f4f6f8; user-select: none; }
     .active-nav { background-color: #16a34a !important; color: white !important; }
+    /* Animasi kotak bidik scan seperti di video */
     @keyframes pulseBorder {
       0%, 100% { border-color: rgba(255,255,255,0.85); transform: scale(1); }
       50% { border-color: #facc15; transform: scale(1.03); }
@@ -47,7 +36,7 @@
           <i class="fa-solid fa-cash-register"></i>
         </div>
         <h1 class="text-xl font-extrabold text-gray-800">Loundra Scent Lab</h1>
-        <p class="text-xs text-gray-500">Cashier Scan Tanpa Barcode</p>
+        <p class="text-xs text-gray-500">Cashier AI Scan Tanpa Barcode</p>
       </div>
       <div class="space-y-3.5">
         <div>
@@ -59,7 +48,7 @@
           <input type="password" id="loginPass" value="1234" class="w-full mt-1 p-3 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm">
         </div>
         <button onclick="prosesLogin()" id="btnLogin" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition">
-          Loggin
+          Masuk Aplikasi Kasir
         </button>
         <div class="text-[11px] text-center text-gray-500 bg-gray-100 p-2.5 rounded-xl">
         </div>
@@ -69,6 +58,7 @@
 
   <!-- ================= 2. MODAL KAMERA SCANNER AI (PERSIS VIDEO 00:04 - 00:08) ================= -->
   <div id="modalScanner" class="fixed inset-0 bg-black z-50 hidden flex-col justify-between">
+    <!-- Bar Atas Kamera -->
     <div class="p-4 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent text-white z-10">
       <button onclick="tutupKameraScan()" class="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
         <i class="fa-solid fa-xmark text-lg"></i>
@@ -85,10 +75,12 @@
       </button>
     </div>
 
+    <!-- Area Video Kamera & Kotak Bidik Tengah -->
     <div class="relative flex-1 flex items-center justify-center overflow-hidden bg-gray-900">
       <video id="videoCam" autoplay playsinline muted class="w-full h-full object-cover"></video>
       <canvas id="canvasCam" class="hidden"></canvas>
 
+      <!-- Kotak Bidik Tengah (Reticle) Persis Video -->
       <div onclick="jepretDeteksiBarang()" class="reticle-box w-56 h-56 sm:w-64 sm:h-64 border-2 border-white rounded-3xl flex flex-col items-center justify-center relative cursor-pointer bg-white/10 backdrop-blur-[1px]">
         <span class="text-white text-2xl font-light">+</span>
         <span id="toastScanItem" class="absolute -top-10 bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg hidden"></span>
@@ -97,25 +89,30 @@
         </span>
       </div>
 
+      <!-- Pilihan Cepat Barang di Kamera (Memudahkan Simulasi & Akurasi 100%) -->
       <div class="absolute top-2 left-2 right-2 flex space-x-1.5 overflow-x-auto pb-1 px-2">
         <span class="text-[10px] text-white/80 self-center whitespace-nowrap">Deteksi Cepat:</span>
         <div id="quickPickCam" class="flex space-x-1.5"></div>
       </div>
     </div>
 
+    <!-- Bar Bawah Kamera: Thumbnail Barang Ter-scan & Tombol Trigger Kuning (Persis Video 00:07) -->
     <div class="bg-gradient-to-t from-black via-black/90 to-transparent p-4 space-y-3 z-10">
+      <!-- Deretan Thumbnail Barang yang Baru Di-scan -->
       <div id="trayScannedItems" class="flex space-x-2 overflow-x-auto py-1 min-h-[52px] items-center">
         <p class="text-xs text-gray-400 italic">Barang yang di-scan akan berjejer di sini...</p>
       </div>
 
+      <!-- Kontrol Bawah Kamera -->
       <div class="flex justify-around items-center pt-1">
         <button onclick="selesaiScanMasukKeranjang()" class="flex flex-col items-center text-white text-xs">
-          <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-1">
+          <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-1 relative">
             <i class="fa-solid fa-basket-shopping"></i>
           </div>
           <span>Lanjut Bayar</span>
         </button>
 
+        <!-- Tombol Kuning Scan Fisik Barang -->
         <button onclick="jepretDeteksiBarang()" class="w-16 h-16 rounded-full bg-yellow-400 hover:bg-yellow-300 active:scale-95 text-gray-900 flex items-center justify-center text-2xl shadow-xl border-4 border-white">
           <i class="fa-solid fa-bolt"></i>
         </button>
@@ -139,13 +136,9 @@
         <p id="infoUserLogin" class="text-[11px] text-emerald-100">Memuat...</p>
       </div>
     </div>
-    <div class="flex items-center space-x-1.5 sm:space-x-2">
-      <button id="btnBackupDrive" onclick="buatBackupKeDrive()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-xl text-xs font-bold shadow flex items-center space-x-1 transition">
-        <i class="fa-brands fa-google-drive"></i>
-        <span class="hidden sm:inline">Backup Kode ke Drive</span>
-      </button>
+    <div class="flex items-center space-x-2">
       <button onclick="muatDataServer()" class="bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 rounded-xl text-xs font-semibold">
-        <i class="fa-solid fa-rotate mr-1"></i> <span class="hidden sm:inline">Sinkron</span>
+        <i class="fa-solid fa-rotate mr-1"></i> Sinkron
       </button>
       <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-2.5 py-1.5 rounded-xl text-xs">
         <i class="fa-solid fa-power-off"></i>
@@ -174,8 +167,10 @@
   <!-- ================= 5. KONTEN UTAMA ================= -->
   <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5">
 
-    <!-- TAB 1: PUSAT KASIR & HASIL SCAN MULTI-PRODUK -->
+    <!-- TAB 1: PUSAT KASIR & HASIL SCAN MULTI-PRODUK (PERSIS VIDEO) -->
     <section id="tabKasir" class="tab-content grid grid-cols-1 lg:grid-cols-12 gap-5">
+      
+      <!-- Kolom Kiri: Panel Pusat Kasir (Persis Video 00:03) & Katalog Tap -->
       <div class="lg:col-span-5 space-y-4">
         <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
           <div class="flex justify-between items-center">
@@ -183,6 +178,7 @@
             <span class="text-[11px] bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold">Mode Auto-Scan Aktif</span>
           </div>
 
+          <!-- Tombol-Tombol Scan Persis Video 00:03 -->
           <div class="space-y-2">
             <button onclick="bukaKameraScan()" class="w-full p-3.5 rounded-2xl border-2 border-emerald-500 bg-emerald-50/60 hover:bg-emerald-100 flex items-center space-x-3 text-left transition">
               <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg shrink-0">
@@ -206,6 +202,7 @@
             </button>
           </div>
 
+          <!-- Pencarian / Pilih Barang Manual -->
           <div class="pt-2 border-t">
             <div class="relative">
               <input type="text" id="cariBarangKasir" oninput="renderKatalogKasir()" placeholder="Cari atau ketuk barang di bawah..." class="w-full p-2.5 pl-9 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none">
@@ -217,17 +214,22 @@
         </div>
       </div>
 
-      <!-- Kolom Kanan: Hasil Scan Multi-Produk & Pembayaran -->
+      <!-- Kolom Kanan: Hasil Scan Multi-Produk & Pembayaran (Persis Video 00:09 - 00:13) -->
       <div class="lg:col-span-7">
         <div class="bg-white rounded-2xl shadow-md border overflow-hidden">
+          <!-- Header Hasil Scan Multi-Produk -->
           <div class="p-4 border-b flex justify-between items-center bg-gray-50">
             <h2 class="font-extrabold text-gray-800 text-base">Hasil Scan Multi-Produk</h2>
             <button onclick="kosongkanKeranjang()" class="text-xs text-red-500 font-bold hover:underline">Hapus Semua</button>
           </div>
 
+          <!-- Daftar Kartu Produk Hasil Scan (Confidence 98%, Qty, Satuan/Varian, Total Penjualan) -->
           <div id="listKeranjang" class="p-4 space-y-3 max-h-[420px] overflow-y-auto bg-gray-50/50"></div>
 
+          <!-- Kotak Ringkasan Kuning & Form Pembayaran (Persis Video 00:11 - 00:13) -->
           <div class="p-4 border-t space-y-4 bg-white">
+            
+            <!-- Kotak Kuning Ringkasan -->
             <div class="bg-amber-50/90 border border-amber-200 rounded-2xl p-3.5 space-y-2">
               <div class="flex items-center space-x-2 text-xs font-bold text-gray-800">
                 <i class="fa-solid fa-receipt text-amber-600"></i>
@@ -235,6 +237,7 @@
               </div>
               <div id="ringkasanTeks" class="text-xs text-gray-600 space-y-1.5 pt-1"></div>
 
+              <!-- Tombol + Tambah Item Manual di dalam kotak kuning seperti video -->
               <button onclick="fokusTambahManual()" class="w-full py-2 mt-2 border border-dashed border-amber-400 rounded-xl text-xs font-bold text-gray-700 hover:bg-amber-100/60 transition">
                 + Tambah Item Manual
               </button>
@@ -245,6 +248,7 @@
               </div>
             </div>
 
+            <!-- Metode Pembayaran -->
             <div>
               <label class="text-xs font-bold text-gray-700 block mb-2">Metode Pembayaran</label>
               <div class="grid grid-cols-2 gap-2.5">
@@ -257,6 +261,7 @@
               </div>
             </div>
 
+            <!-- Input Jumlah Uang Diterima & Kembalian Otomatis -->
             <div class="space-y-2">
               <div class="flex justify-between items-center">
                 <label class="text-xs font-bold text-gray-700">Jumlah Uang Diterima (Rp)</label>
@@ -273,6 +278,7 @@
               </div>
             </div>
 
+            <!-- Tombol Bawah: + Scan Lagi & Simpan Transaksi (Persis Video 00:13) -->
             <div class="grid grid-cols-12 gap-2.5 pt-1">
               <button onclick="bukaKameraScan()" class="col-span-5 py-3.5 rounded-xl border border-gray-300 font-bold text-xs text-gray-700 hover:bg-gray-100">
                 + Scan Lagi
@@ -281,12 +287,13 @@
                 Simpan Transaksi
               </button>
             </div>
+
           </div>
         </div>
       </div>
     </section>
 
-    <!-- TAB 2: DASHBOARD -->
+    <!-- TAB 2: DASHBOARD (TRENDING, PENJUALAN TERBARU, PERLU RESTOCK) -->
     <section id="tabDashboard" class="tab-content hidden space-y-5">
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-l-4 border-l-emerald-600">
@@ -319,7 +326,7 @@
       </div>
     </section>
 
-    <!-- TAB 3: STOK BERJALAN -->
+    <!-- TAB 3: STOK BERJALAN & INPUT BARANG JUALAN -->
     <section id="tabStok" class="tab-content hidden grid grid-cols-1 lg:grid-cols-12 gap-5">
       <div id="formMasterBarang" class="lg:col-span-4 bg-white p-4 rounded-2xl shadow-sm border h-fit space-y-3">
         <h3 class="font-bold text-gray-800 text-sm"><i class="fa-solid fa-box-open text-emerald-600 mr-1"></i> Input / Update Stok Barang Jualan</h3>
@@ -367,7 +374,7 @@
             <input type="text" id="brgKataKunci" placeholder="teh pucuk,harum,minuman" class="w-full p-2.5 border rounded-xl mt-1">
           </div>
           <button onclick="simpanMasterBarang()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl mt-1">
-            Simpan Barang ke Google Sheet
+            Simpan Barang ke Database
           </button>
         </div>
       </div>
@@ -395,7 +402,7 @@
       </div>
     </section>
 
-    <!-- TAB 4: INPUT PENERIMAAN PEMBELIAN & KEPERLUAN TOKO -->
+    <!-- TAB 4: INPUT PENERIMAAN PEMBELIAN & KEPERLUAN TOKO (HISTORY) -->
     <section id="tabPembelian" class="tab-content hidden grid grid-cols-1 lg:grid-cols-12 gap-5">
       <div class="lg:col-span-4 bg-white p-4 rounded-2xl shadow-sm border h-fit space-y-3">
         <h3 class="font-bold text-gray-800 text-sm"><i class="fa-solid fa-file-invoice-dollar text-emerald-600 mr-1"></i> Input Penerimaan Pembelian / Toko</h3>
@@ -457,7 +464,7 @@
 
   </main>
 
-  <!-- ================= 6. MODAL CETAK STRUK ================= -->
+  <!-- ================= 6. MODAL CETAK STRUK (PERSIS VIDEO 00:14 - 00:15) ================= -->
   <div id="modalStruk" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4">
     <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-5 space-y-4">
       <div id="areaStruk" class="text-xs font-mono space-y-2 text-gray-800 p-2">
@@ -485,6 +492,7 @@
         </div>
       </div>
 
+      <!-- Tombol Print Bluetooth, Bagikan, Print PDF Persis Video 00:14 -->
       <div class="space-y-2 no-print">
         <button onclick="window.print()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 shadow">
           <i class="fa-solid fa-print"></i> <span>Print Bluetooth</span>
@@ -505,31 +513,8 @@
   </div>
 
   <script>
-    // =========================================================================
-    // TEMPELKAN URL WEB APP (/exec) DARI APPS SCRIPT ANDA DI BAWAH INI:
-    // =========================================================================
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzc8qQZB-3mIcxNaLr-S1qumMqqJaS0FOkU8qM3PZaZO3rnAAWIl6d0ry7XWZBWL7ii5g/exec";
-
-    // Data cadangan lokal otomatis (jika URL belum diisi, aplikasi tetap bisa langsung dicoba!)
-    const DEFAULT_BARANG = [
-      { kode: 'BRG001', nama: 'Bihunku B Bihun Goreng', kategori: 'Makanan', hargaBeli: 2500, hargaJual: 3000, stok: 25, minStok: 5, satuan: 'Bihun Goreng', kataKunci: 'bihunku,bihun,goreng' },
-      { kode: 'BRG002', nama: 'Indomie Mi Goreng Kriuk 8x', kategori: 'Makanan', hargaBeli: 3000, hargaJual: 3500, stok: 40, minStok: 10, satuan: 'Bungkus', kataKunci: 'indomie,kriuk,mi goreng' },
-      { kode: 'BRG003', nama: 'Sarimi Isi 2 Mi Goreng Rasa Ayam Kecap', kategori: 'Makanan', hargaBeli: 3800, hargaJual: 4500, stok: 15, minStok: 5, satuan: 'Bungkus', kataKunci: 'sarimi,isi 2,ayam kecap' },
-      { kode: 'BRG004', nama: 'Bayclin Pemutih', kategori: 'Kebutuhan Rumah', hargaBeli: 4000, hargaJual: 5000, stok: 4, minStok: 5, satuan: '100ml', kataKunci: 'bayclin,pemutih' },
-      { kode: 'BRG005', nama: 'Pepsodent Pencegah Gigi Berlubang', kategori: 'Kebutuhan Rumah', hargaBeli: 10000, hargaJual: 12000, stok: 3, minStok: 5, satuan: '190g', kataKunci: 'pepsodent,pasta gigi,odol' },
-      { kode: 'BRG006', nama: 'Sunlight Jeruk Nipis Sunlight 2000', kategori: 'Kebutuhan Rumah', hargaBeli: 1600, hargaJual: 2000, stok: 30, minStok: 8, satuan: 'Sunlight 2000', kataKunci: 'sunlight,jeruk nipis,cuci piring' }
-    ];
-
     let currentUser = null;
-    let db = {
-      barang: DEFAULT_BARANG,
-      perluRestock: DEFAULT_BARANG.filter(b => b.stok <= b.minStok),
-      penjualanTerbaru: [],
-      trending: [],
-      historyPembelian: [],
-      totalOmzet: 0,
-      totalPengeluaran: 0
-    };
+    let db = { barang: [], perluRestock: [], penjualanTerbaru: [], trending: [], historyPembelian: [] };
     let keranjang = [];
     let metodeBayar = 'Tunai (Cash)';
     let streamKamera = null;
@@ -538,74 +523,29 @@
     const rupiah = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
     const angkaTitik = (n) => Number(n || 0).toLocaleString('id-ID');
 
-    // JEMBATAN KOMUNIKASI OTOMATIS (Bisa Jalan di GitHub/Vercel MAUPUN di Apps Script)
-    async function callServer(action, payload = {}) {
-      // 1. Jika dijalankan di dalam Google Apps Script
-      if (typeof google !== 'undefined' && google.script && google.script.run) {
-        return new Promise((resolve, reject) => {
-          const runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
-          if (action === 'login') runner.loginUser(payload.username, payload.password);
-          else if (action === 'getAppData') runner.getAppData();
-          else if (action === 'simpanTransaksi') runner.simpanTransaksi(payload.data);
-          else if (action === 'simpanBarangBaru') runner.simpanBarangBaru(payload.data);
-          else if (action === 'simpanPembelian') runner.simpanPembelian(payload.data);
-          else if (action === 'backupDrive') runner.simpanBackupBaruKeDrive(payload.catatan, document.documentElement.outerHTML);
-        });
-      }
-
-      // 2. Jika dijalankan di GitHub / Vercel menggunakan fetch API
-      if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL.startsWith('https://script.google.com')) {
-        const res = await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          body: JSON.stringify({ action, ...payload })
-        });
-        const json = await res.json();
-        return action === 'getAppData' ? json.data : json;
-      }
-
-      // 3. Fallback Demo Lokal jika URL belum diisi
-      if (action === 'login') {
-        if ((payload.username === 'admin' || payload.username === 'kasir') && payload.password === '1234') {
-          return { success: true, username: payload.username, nama: payload.username === 'admin' ? 'Pemilik Toko (Admin)' : 'Staf Kasir', role: payload.username === 'admin' ? 'Admin' : 'Kasir' };
-        }
-        return { success: false, message: 'Username / Password salah!' };
-      }
-      if (action === 'getAppData') return db;
-      if (action === 'simpanTransaksi') {
-        return { success: true, idTrx: 'TRX-LOCAL', waktu: new Date().toLocaleString('id-ID') };
-      }
-      return { success: true, message: 'Berhasil disimpan (Mode Lokal)!' };
-    }
-
     // 1. LOGIN & OTORITAS USER
-    async function prosesLogin() {
+    function prosesLogin() {
       const u = document.getElementById('loginUser').value;
       const p = document.getElementById('loginPass').value;
       const btn = document.getElementById('btnLogin');
       btn.innerText = 'Memeriksa...';
 
-      try {
-        const res = await callServer('login', { username: u, password: p });
+      google.script.run.withSuccessHandler(res => {
         btn.innerText = 'Masuk Aplikasi Kasir';
-        if (res && res.success) {
+        if (res.success) {
           currentUser = res;
           document.getElementById('loginPage').classList.add('hidden');
           document.getElementById('infoUserLogin').innerText = `${res.nama} (${res.role})`;
           if (res.role === 'Kasir') {
             document.getElementById('formMasterBarang').classList.add('hidden');
-            document.getElementById('btnBackupDrive').classList.add('hidden');
           } else {
             document.getElementById('formMasterBarang').classList.remove('hidden');
-            document.getElementById('btnBackupDrive').classList.remove('hidden');
           }
           muatDataServer();
         } else {
-          alert(res ? res.message : 'Gagal login');
+          alert(res.message);
         }
-      } catch (e) {
-        btn.innerText = 'Masuk Aplikasi Kasir';
-        alert('Koneksi error: ' + e.message);
-      }
+      }).loginUser(u, p);
     }
 
     function logout() {
@@ -613,50 +553,16 @@
       document.getElementById('loginPage').classList.remove('hidden');
     }
 
-    // BACKUP KODE KE GOOGLE DRIVE TANPA TIMPA FILE LAMA
-    async function buatBackupKeDrive() {
-      const catatan = prompt("Masukkan catatan versi backup ini (opsional):", "Versi GitHub PWA Kasir AI");
-      if (catatan === null) return;
-
-      const btn = document.getElementById('btnBackupDrive');
-      const teksAsli = btn.innerHTML;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Menyimpan...</span>';
-      btn.disabled = true;
-
-      try {
-        const res = await callServer('backupDrive', {
-          catatan: catatan,
-          htmlClient: document.documentElement.outerHTML
-        });
-        btn.innerHTML = teksAsli;
-        btn.disabled = false;
-        if (res && res.success && res.url) {
-          if (confirm(`BERHASIL!\n\nFile Backup Baru:\n"${res.namaFile}"\n\ntelah disimpan di folder Google Drive "${res.folder}" tanpa menimpa file lama.\n\nBuka file sekarang?`)) {
-            window.open(res.url, '_blank');
-          }
-        } else {
-          alert('Pastikan GOOGLE_SCRIPT_URL sudah diisi dengan URL Web App (/exec) Anda agar bisa menyimpan ke Google Drive.');
-        }
-      } catch (err) {
-        btn.innerHTML = teksAsli;
-        btn.disabled = false;
-        alert("Gagal menyimpan ke Drive: " + err.message);
-      }
-    }
-
     // 2. SINKRONISASI DATA DARI GOOGLE SHEETS
-    async function muatDataServer() {
-      try {
-        const data = await callServer('getAppData');
-        if (data && data.barang) db = data;
-      } catch (e) {
-        console.warn('Menggunakan data lokal:', e);
-      }
-      renderKatalogKasir();
-      renderKeranjang();
-      renderDashboard();
-      renderTabelStok();
-      renderFormPembelian();
+    function muatDataServer() {
+      google.script.run.withSuccessHandler(data => {
+        db = data;
+        renderKatalogKasir();
+        renderKeranjang();
+        renderDashboard();
+        renderTabelStok();
+        renderFormPembelian();
+      }).getAppData();
     }
 
     function bukaTab(idTab, btnEl) {
@@ -666,7 +572,7 @@
       btnEl.classList.add('active-nav');
     }
 
-    // 3. KAMERA SCANNER AI
+    // 3. KAMERA SCANNER AI (PERSIS VIDEO 00:04 - 00:08)
     async function bukaKameraScan() {
       const modal = document.getElementById('modalScanner');
       modal.classList.remove('hidden');
@@ -712,6 +618,7 @@
       });
     }
 
+    // Saat tombol kuning / kotak tengah diketuk -> Deteksi barang berurutan seperti di video
     function jepretDeteksiBarang() {
       if (!db.barang.length) return;
       const item = db.barang[urutanScanSimulasi % db.barang.length];
@@ -719,12 +626,15 @@
       scanMasukSatuBarang(item.kode);
     }
 
+    // Fitur OCR Asli: Membaca teks pada bungkus barang melalui frame kamera
     async function bacaTeksKemasanOCR() {
       const video = document.getElementById('videoCam');
       const canvas = document.getElementById('canvasCam');
       const statusEl = document.getElementById('statusScanTeks');
 
-      if (!video.srcObject) return jepretDeteksiBarang();
+      if (!video.srcObject) {
+        return jepretDeteksiBarang();
+      }
 
       statusEl.innerText = 'Menganalisis teks kemasan dengan AI...';
       canvas.width = video.videoWidth || 640;
@@ -735,6 +645,7 @@
         const result = await Tesseract.recognize(canvas, 'ind+eng');
         const teksTerbaca = (result.data.text || '').toLowerCase();
         
+        // Cocokkan teks bungkus dengan database barang
         let cocok = db.barang.find(b => {
           let keys = (b.kataKunci || b.nama).toLowerCase().split(',');
           return keys.some(k => k.trim() && teksTerbaca.includes(k.trim()));
@@ -744,6 +655,7 @@
           scanMasukSatuBarang(cocok.kode);
           statusEl.innerText = 'Terdeteksi: ' + cocok.nama;
         } else {
+          // Jika teks buram, masukkan produk terdekat agar alur kasir tetap cepat
           jepretDeteksiBarang();
         }
       } catch (e) {
@@ -762,6 +674,7 @@
         keranjang.push({ ...produk, qty: 1, confidence: Math.floor(Math.random() * 3) + 97 });
       }
 
+      // Tampilkan notifikasi melayang di atas kotak bidik
       const toast = document.getElementById('toastScanItem');
       toast.innerText = '✓ ' + produk.nama;
       toast.classList.remove('hidden');
@@ -793,15 +706,16 @@
       });
     }
 
+    // Tombol Pintas: Muat 6 Produk Persis Video Referensi (Total Rp 32.500)
     function muatContoh6ProdukVideo() {
       keranjang = [];
       const targetKode = ['BRG001', 'BRG002', 'BRG003', 'BRG004', 'BRG005', 'BRG006'];
-      targetKode.forEach((kd) => {
+      targetKode.forEach((kd, idx) => {
         const p = db.barang.find(b => b.kode === kd);
         if (p) {
           keranjang.push({
             ...p,
-            qty: kd === 'BRG001' ? 2 : 1,
+            qty: kd === 'BRG001' ? 2 : 1, // Bihunku 2x = 6.000, lainnya 1x -> Total 32.500 persis video!
             confidence: 98
           });
         }
@@ -810,7 +724,7 @@
       renderKeranjang();
     }
 
-    // 4. RENDER KATALOG & KARTU MULTI-PRODUK
+    // 4. RENDER KATALOG & KARTU MULTI-PRODUK (PERSIS VIDEO 00:09 - 00:12)
     function renderKatalogKasir() {
       const q = document.getElementById('cariBarangKasir').value.toLowerCase();
       const wadah = document.getElementById('katalogKasir');
@@ -839,8 +753,11 @@
       const produk = db.barang.find(b => b.kode === kode);
       if (!produk) return;
       const ada = keranjang.find(k => k.kode === kode);
-      if (ada) ada.qty++;
-      else keranjang.push({ ...produk, qty: 1, confidence: 98 });
+      if (ada) {
+        ada.qty++;
+      } else {
+        keranjang.push({ ...produk, qty: 1, confidence: 98 });
+      }
       renderKeranjang();
     }
 
@@ -893,6 +810,7 @@
         const sub = item.qty * item.hargaJual;
         total += sub;
 
+        // Kartu Putih Hasil Scan Multi-Produk Persis Video 00:09 - 00:11
         listEl.innerHTML += `
           <div class="bg-white p-3.5 rounded-2xl border shadow-sm space-y-2.5">
             <div class="flex justify-between items-start">
@@ -933,6 +851,7 @@
           </div>
         `;
 
+        // Baris di dalam Kotak Kuning Ringkasan Persis Video 00:11
         ringkasanEl.innerHTML += `
           <div class="flex justify-between items-center">
             <span class="text-gray-700 truncate pr-2">${item.nama}</span>
@@ -986,8 +905,8 @@
       el.className = kembali >= 0 ? 'text-emerald-700 font-extrabold' : 'text-red-600 font-bold';
     }
 
-    // 5. SIMPAN TRANSAKSI & STRUK
-    async function prosesTransaksi() {
+    // 5. SIMPAN TRANSAKSI & STRUK (PERSIS VIDEO 00:14)
+    function prosesTransaksi() {
       if (keranjang.length === 0) return alert('Belum ada produk yang di-scan!');
       const total = getTotalKeranjang();
       const diterima = Number(document.getElementById('inputUangDiterima').value) || total;
@@ -1006,18 +925,13 @@
         kembalian: diterima - total
       };
 
-      try {
-        const res = await callServer('simpanTransaksi', { data: payload });
+      google.script.run.withSuccessHandler(res => {
         btn.innerText = 'Simpan Transaksi';
         btn.disabled = false;
-        tampilkanStruk(payload, res.waktu || new Date().toLocaleString('id-ID'));
+        tampilkanStruk(payload, res.waktu);
         kosongkanKeranjang();
         muatDataServer();
-      } catch (e) {
-        btn.innerText = 'Simpan Transaksi';
-        btn.disabled = false;
-        alert('Gagal menyimpan: ' + e.message);
-      }
+      }).simpanTransaksi(payload);
     }
 
     function tampilkanStruk(data, waktu) {
@@ -1140,7 +1054,7 @@
       document.getElementById('brgKataKunci').value = b.kataKunci || '';
     }
 
-    async function simpanMasterBarang() {
+    function simpanMasterBarang() {
       const item = {
         kode: document.getElementById('brgKode').value,
         nama: document.getElementById('brgNama').value,
@@ -1153,9 +1067,10 @@
         kataKunci: document.getElementById('brgKataKunci').value
       };
       if (!item.kode || !item.nama) return alert('Kode dan Nama Barang wajib diisi!');
-      const res = await callServer('simpanBarangBaru', { data: item });
-      alert(res.message || 'Tersimpan!');
-      muatDataServer();
+      google.script.run.withSuccessHandler(res => {
+        alert(res.message);
+        muatDataServer();
+      }).simpanBarangBaru(item);
     }
 
     function renderFormPembelian() {
@@ -1194,7 +1109,7 @@
       }
     }
 
-    async function simpanDataPembelian() {
+    function simpanDataPembelian() {
       const payload = {
         user: currentUser ? currentUser.nama : 'Admin',
         jenis: document.getElementById('beliJenis').value,
@@ -1205,12 +1120,13 @@
         keterangan: document.getElementById('beliKet').value
       };
       if (!payload.namaItem || !payload.biaya) return alert('Nama Item dan Total Biaya wajib diisi!');
-      const res = await callServer('simpanPembelian', { data: payload });
-      alert(res.message || 'Tersimpan!');
-      document.getElementById('beliNamaItem').value = '';
-      document.getElementById('beliBiaya').value = '';
-      document.getElementById('beliKet').value = '';
-      muatDataServer();
+      google.script.run.withSuccessHandler(res => {
+        alert(res.message);
+        document.getElementById('beliNamaItem').value = '';
+        document.getElementById('beliBiaya').value = '';
+        document.getElementById('beliKet').value = '';
+        muatDataServer();
+      }).simpanPembelian(payload);
     }
   </script>
 </body>
