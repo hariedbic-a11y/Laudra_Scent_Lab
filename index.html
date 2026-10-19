@@ -465,20 +465,31 @@
       document.getElementById('judulHeaderAktif').innerText = judulMap[idTab] || 'Dashboard';
     }
 
-    // --- PERBAIKAN UTAMA: FUNGSI KAMERA SCANNER & OCR AI ---
+   // --- PERBAIKAN: BERSIHKAN KERANJANG / TRAY SAAT MODAL KAMERA DIBUKA ---
     async function bukaKameraScan() {
       const modal = document.getElementById('modalScanner');
-      modal.classList.remove('hidden'); modal.classList.add('flex');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      
+      // Mengosongkan keranjang aktif saat membuka kamera baru agar tidak ada data lama yang nyangkut
+      keranjang = [];
+      renderTrayCamera();
+      renderKeranjang();
+
       renderQuickPickKamera();
       try {
         streamKamera = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
         document.getElementById('videoCam').srcObject = streamKamera;
-        document.getElementById('statusScanTeks').innerText = 'Kamera aktif. Arahkan ke kemasan.';
+        document.getElementById('statusScanTeks').innerText = 'Kamera aktif. Arahkan kemasan ke kotak tengah.';
       } catch (err) {
-        document.getElementById('statusScanTeks').innerText = 'Kamera tidak diizinkan / Mode simulasi aktif.';
+        document.getElementById('statusScanTeks').innerText = 'Kamera tidak aktif / Mode simulasi.';
       }
     }
 
+    // --- PERBAIKAN: TOMBOL PETIR KUNING LANGSUNG MEMICU OCR AI ---
+    function jepretDeteksiBarang() {
+      bacaTeksKemasanOCR();
+    }
     function tutupKameraScan() {
       if (streamKamera) { streamKamera.getTracks().forEach(t => t.stop()); streamKamera = null; }
       document.getElementById('modalScanner').classList.add('hidden');
