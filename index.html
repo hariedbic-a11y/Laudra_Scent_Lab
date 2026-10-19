@@ -368,6 +368,7 @@
   <!-- MODAL STRUK -->
   <div id="modalStruk" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4">
     <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+      <div id="bannerStruk" class="no-print text-center text-[11px] font-bold rounded-xl py-1.5"></div>
       <div id="areaStruk" class="text-xs font-mono space-y-2 p-4 struk-watermark bg-white rounded-2xl border border-slate-200">
         <div class="struk-content space-y-2">
           <div class="text-center border-b border-dashed border-slate-300 pb-3"><h2 class="font-extrabold text-sm text-teal-700">Loundra Scent Lab</h2><p id="strukWaktu" class="text-[10px] text-slate-500"></p></div>
@@ -380,8 +381,14 @@
         </div>
       </div>
       <div class="space-y-2 no-print">
-        <button onclick="window.print()" class="w-full bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-2xl font-bold text-xs shadow-md"><i class="fa-solid fa-print mr-1"></i> Cetak Struk</button>
-        <button onclick="tutupStrukBersih()" class="w-full text-center text-xs text-slate-500 hover:text-slate-800 font-bold pt-1">Tutup & Transaksi Baru</button>
+        <div id="aksiPreview" class="space-y-2">
+          <button id="btnSimpanStruk" onclick="konfirmasiSimpanTransaksi()" class="w-full bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white py-3 rounded-2xl font-bold text-xs shadow-md"><i class="fa-solid fa-check mr-1"></i> Simpan Transaksi</button>
+          <button onclick="kembaliEditTransaksi()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-2xl font-bold text-xs"><i class="fa-solid fa-arrow-left mr-1"></i> Kembali (tambah / ubah barang)</button>
+        </div>
+        <div id="aksiSelesai" class="space-y-2 hidden">
+          <button onclick="window.print()" class="w-full bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-2xl font-bold text-xs shadow-md"><i class="fa-solid fa-print mr-1"></i> Cetak Struk</button>
+          <button onclick="tutupStrukBersih()" class="w-full text-center text-xs text-slate-500 hover:text-slate-800 font-bold pt-1">Tutup & Transaksi Baru</button>
+        </div>
       </div>
     </div>
   </div>
@@ -871,33 +878,69 @@
       document.getElementById('labelKembalian').innerText = rupiah(d - total);
     }
 
-    async function prosesTransaksi() {
+    let sedangSimpan = false;
+    let transaksiTertunda = null;
+
+    function aturModeStruk(mode) {
+      const preview = mode === 'preview';
+      document.getElementById('aksiPreview').classList.toggle('hidden', !preview);
+      document.getElementById('aksiSelesai').classList.toggle('hidden', preview);
+      const bn = document.getElementById('bannerStruk');
+      bn.className = 'no-print text-center text-[11px] font-bold rounded-xl py-1.5 ' + (preview ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200');
+      bn.innerText = preview ? 'Belum disimpan. Periksa dulu, atau kembali untuk menambah barang.' : '✓ Transaksi berhasil disimpan';
+      const m = document.getElementById('modalStruk');
+      m.classList.remove('hidden'); m.classList.add('flex');
+    }
+
+    // Langkah 1: tampilkan pratinjau struk (belum disimpan ke database)
+    function prosesTransaksi() {
       if (!keranjang.length) return alert('Keranjang kosong!');
-      let total = getTotalKeranjang();
-      let diterima = Number(document.getElementById('inputUangDiterima').value.replace(/\D/g, '')) || total;
+      const total = getTotalKeranjang();
+      const diterima = Number(document.getElementById('inputUangDiterima').value.replace(/\D/g, '')) || total;
       if (diterima < total) return alert('Uang diterima kurang dari total belanja!');
 
-      let res = await kirimDataKeServer('simpanTransaksi', { kasir: currentUser.nama, items: keranjang, total: total, metode: 'Tunai', uangDiterima: diterima, kembalian: diterima - total });
+      transaksiTertunda = { total, diterima, kembalian: diterima - total };
+      document.getElementById('strukWaktu').innerText = new Date().toLocaleString('id-ID');
+      document.getElementById('strukTotal').innerText = rupiah(total);
+      document.getElementById('strukDiterima').innerText = rupiah(diterima);
+      document.getElementById('strukKembalian').innerText = rupiah(diterima - total);
+      document.getElementById('strukListItems').innerHTML = keranjang.map(it =>
+        `<div><div class="font-bold">${it.nama}</div><div class="flex justify-between text-slate-600"><span>${it.qty} x ${angkaTitik(it.hargaJual)}</span><span>${angkaTitik(it.qty * it.hargaJual)}</span></div></div>`
+      ).join('');
+      aturModeStruk('preview');
+    }
+
+    // Kembali: tutup pratinjau, keranjang & uang diterima tetap utuh
+    function kembaliEditTransaksi() {
+      transaksiTertunda = null;
+      document.getElementById('modalStruk').classList.add('hidden');
+      document.getElementById('modalStruk').classList.remove('flex');
+    }
+
+    // Langkah 2: simpan sungguhan
+    async function konfirmasiSimpanTransaksi() {
+      if (sedangSimpan || !transaksiTertunda) return;
+      sedangSimpan = true;
+      const btn = document.getElementById('btnSimpanStruk');
+      btn.disabled = true;
+      const d = transaksiTertunda;
+      const res = await kirimDataKeServer('simpanTransaksi', {
+        kasir: currentUser ? currentUser.nama : 'Admin', items: keranjang, total: d.total,
+        metode: 'Tunai', uangDiterima: d.diterima, kembalian: d.kembalian
+      });
+      sedangSimpan = false; btn.disabled = false;
       if (res.success) {
         document.getElementById('strukWaktu').innerText = new Date().toLocaleString('id-ID');
-        document.getElementById('strukTotal').innerText = rupiah(total);
-        document.getElementById('strukDiterima').innerText = rupiah(diterima);
-        document.getElementById('strukKembalian').innerText = rupiah(diterima - total);
-        
-        let listStruk = document.getElementById('strukListItems');
-        listStruk.innerHTML = '';
-        keranjang.forEach(it => {
-          listStruk.innerHTML += `<div><div class="font-bold">${it.nama}</div><div class="flex justify-between text-slate-600"><span>${it.qty} x ${angkaTitik(it.hargaJual)}</span><span>${angkaTitik(it.qty * it.hargaJual)}</span></div></div>`;
-        });
-
-        document.getElementById('modalStruk').classList.remove('hidden');
-        document.getElementById('modalStruk').classList.add('flex');
-        keranjang = []; renderKeranjang();
+        transaksiTertunda = null;
+        keranjang = [];
+        document.getElementById('inputUangDiterima').value = '';
+        renderKeranjang();
+        aturModeStruk('selesai');
       }
     }
 
     function tutupStrukBersih() { document.getElementById('modalStruk').classList.add('hidden'); document.getElementById('modalStruk').classList.remove('flex'); }
-    
+
     function renderDashboard() {
       document.getElementById('statOmzet').innerText = rupiah(db.totalOmzet);
       document.getElementById('statPengeluaran').innerText = rupiah(db.totalPengeluaran);
