@@ -104,7 +104,7 @@
       <div onclick="jepretDeteksiBarang()" class="reticle-box absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4/5 h-3/5 border-2 border-white rounded-3xl flex flex-col items-center justify-center cursor-pointer bg-white/5">
         <span class="text-white text-2xl font-light">+</span>
         <span id="toastScanItem" class="absolute -top-10 bg-teal-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg hidden"></span>
-        <span class="absolute bottom-3 text-[10px] text-white/90 bg-black/50 px-2.5 py-0.5 rounded-full">Barcode terbaca otomatis · ketuk untuk pindai</span>
+        <span class="absolute bottom-3 text-[10px] text-white/90 bg-black/50 px-2.5 py-0.5 rounded-full">Terdeteksi otomatis · ketuk untuk pindai paksa</span>
       </div>
       <div class="absolute top-2 left-2 right-2 flex space-x-1.5 overflow-x-auto pb-1 px-2"><div id="quickPickCam" class="flex space-x-1.5"></div></div>
       <div id="kartuKonfirmasi" class="hidden absolute bottom-3 left-3 right-3 bg-white rounded-2xl p-3 shadow-2xl space-y-2 z-20">
@@ -471,25 +471,31 @@
       document.getElementById('judulHeaderAktif').innerText = judulMap[idTab] || 'Dashboard';
     }
 
-    // ================= SCANNER =================
-    // Hasil scan disimpan di "sesiScan" (terpisah dari keranjang) dan baru
-    // dipindah ke keranjang saat menekan "Selesai". Menutup kamera = membatalkan sesi.
+    // ================= SCANNER OTOMATIS =================
+    // Kamera memindai terus-menerus: barcode (cepat) + OCR nama merek. Barang masuk otomatis
+    // ke "sesiScan" (terpisah dari keranjang) dan dipindah ke keranjang saat menekan "Selesai".
     let sesiScan = [];
-    let sesiId = 0;              // token: proses async dari sesi lama diabaikan
-    let sedangMemindai = false;
+    let sesiId = 0;                 // token sesi: proses async dari sesi lama diabaikan
+    let sedangBarcode = false;
     let kandidatAktif = null;
     let barcodeBaruAktif = '';
     let timerBarcode = null;
+    let ocrWorker = null;
     let qrReader = null;
     let barcodeDetector = null;
     let cooldownBarcode = { kode: '', waktu: 0 };
+    let kunciOCR = { kode: null, waktu: 0, hilang: 0 };   // mencegah barang yang sama ditambah berulang saat masih terlihat
+    let kandidatTerakhir = { kode: null, hitung: 0 };
+    let paksaBerikut = false;
+    const jeda = (ms) => new Promise(r => setTimeout(r, ms));
 
     function setStatusScan(t) { document.getElementById('statusScanTeks').innerText = t; }
 
     async function bukaKameraScan() {
       sesiId++;
       const id = sesiId;
-      sesiScan = []; kandidatAktif = null; sedangMemindai = false;
+      sesiScan = []; kandidatAktif = null; sedangBarcode = false; paksaBerikut = false;
+      kunciOCR = { kode: null, waktu: 0, hilang: 0 }; kandidatTerakhir = { kode: null, hitung: 0 };
       if (streamKamera) { streamKamera.getTracks().forEach(t => t.stop()); streamKamera = null; }
 
       const modal = document.getElementById('modalScanner');
@@ -510,8 +516,8 @@
         const video = document.getElementById('videoCam');
         video.srcObject = stream;
         try { await video.play(); } catch (e) {}
-        setStatusScan('Arahkan BARCODE ke kotak. Tanpa barcode? tekan OCR AI.');
         mulaiLoopBarcode();
+        mulaiLoopOCR(id);
       } catch (err) {
         setStatusScan('Kamera tidak bisa dipakai. Pilih produk manual lewat tombol di atas.');
       }
@@ -520,9 +526,10 @@
     function hentikanLoopBarcode() { if (timerBarcode) { clearInterval(timerBarcode); timerBarcode = null; } }
 
     function tutupKameraScan() {
-      sesiId++;                       // batalkan semua proses yang masih berjalan
+      sesiId++;                       // menghentikan semua loop & membatalkan proses yang masih berjalan
       hentikanLoopBarcode();
-      sedangMemindai = false; kandidatAktif = null; sesiScan = [];
+      sedangBarcode = false; kandidatAktif = null; sesiScan = [];
+      if (ocrWorker) { ocrWorker.terminate().catch(() => {}); ocrWorker = null; }
       if (streamKamera) { streamKamera.getTracks().forEach(t => t.stop()); streamKamera = null; }
       const video = document.getElementById('videoCam');
       if (video) video.srcObject = null;
@@ -559,12 +566,15 @@
       if (!p) return;
       const ada = sesiScan.find(k => k.kode === kode);
       if (ada) ada.qty++; else sesiScan.push({ ...p, qty: 1 });
+      kunciOCR = { kode, waktu: Date.now(), hilang: 0 };
+      kandidatTerakhir = { kode: null, hitung: 0 };
 
       const toast = document.getElementById('toastScanItem');
       toast.innerText = '✓ ' + p.nama;
       toast.classList.remove('hidden');
-      setTimeout(() => toast.classList.add('hidden'), 1500);
+      setTimeout(() => toast.classList.add('hidden'), 1800);
       setStatusScan('✓ ' + p.nama + (sumber ? ' (' + sumber + ')' : ''));
+      if (navigator.vibrate) navigator.vibrate(60);
       tutupKonfirmasi();
       renderTrayCamera();
     }
@@ -586,7 +596,7 @@
       ).join('');
     }
 
-    // ---------- Kartu konfirmasi ----------
+    // ---------- Kartu konfirmasi (hanya untuk kasus ambigu / barcode baru) ----------
     function tutupKonfirmasi() {
       kandidatAktif = null; barcodeBaruAktif = '';
       const k = document.getElementById('kartuKonfirmasi');
@@ -595,9 +605,9 @@
 
     function tampilkanKandidat(daftar) {
       kandidatAktif = { tipe: 'ocr' };
-      document.getElementById('kkJudul').innerText = daftar.length > 1 ? 'Mana yang sesuai dengan kemasan?' : 'Apakah ini produknya?';
+      document.getElementById('kkJudul').innerText = 'Ada beberapa varian mirip. Pilih yang sesuai:';
       document.getElementById('kkPilihan').innerHTML = daftar.map(d =>
-        `<button onclick="tambahSesi('${d.b.kode}', 'OCR')" class="w-full text-left bg-teal-50 hover:bg-teal-100 border border-teal-200 text-slate-800 text-xs font-bold px-3 py-2 rounded-xl">${d.b.nama}</button>`
+        `<button onclick="tambahSesi('${d.b.kode}', 'Teks')" class="w-full text-left bg-teal-50 hover:bg-teal-100 border border-teal-200 text-slate-800 text-xs font-bold px-3 py-2 rounded-xl">${d.b.nama}</button>`
       ).join('');
       document.getElementById('kartuKonfirmasi').classList.remove('hidden');
     }
@@ -622,7 +632,7 @@
       tambahSesi(kode, 'Barcode');
     }
 
-    // ---------- Barcode (akurat, utama) ----------
+    // ---------- Barcode (utama, akurat) ----------
     async function bacaBarcodeFrame() {
       const video = document.getElementById('videoCam');
       if (!video.videoWidth) return null;
@@ -645,13 +655,13 @@
       hentikanLoopBarcode();
       const id = sesiId;
       timerBarcode = setInterval(async () => {
-        if (id !== sesiId || sedangMemindai || kandidatAktif) return;
-        sedangMemindai = true;
+        if (id !== sesiId || sedangBarcode || kandidatAktif) return;
+        sedangBarcode = true;
         try {
           const kode = await bacaBarcodeFrame();
           if (id === sesiId && kode) prosesBarcode(kode);
         } catch (e) {
-        } finally { sedangMemindai = false; }
+        } finally { sedangBarcode = false; }
       }, 600);
     }
 
@@ -664,25 +674,24 @@
       if (b) tambahSesi(b.kode, 'Barcode'); else tampilkanBarcodeBaru(kode);
     }
 
-    // Tombol petir / ketuk kotak: coba barcode dulu, kalau tidak ada baru OCR. TIDAK ADA pemilihan acak.
+    // Tombol petir / ketuk kotak / OCR AI: paksa pindai sekarang (tanpa menunggu pembacaan stabil)
     async function jepretDeteksiBarang() {
       if (!streamKamera) return setStatusScan('Kamera belum aktif. Pilih produk manual lewat tombol di atas.');
-      if (sedangMemindai) return;
-      const id = sesiId;
-      sedangMemindai = true;
-      let kode = null;
-      try { kode = await bacaBarcodeFrame(); } catch (e) {}
-      sedangMemindai = false;
-      if (id !== sesiId) return;
-      if (kode) prosesBarcode(kode, true); else bacaTeksKemasanOCR();
+      setStatusScan('Memindai...');
+      try {
+        const kode = await bacaBarcodeFrame();
+        if (kode) return prosesBarcode(kode, true);
+      } catch (e) {}
+      paksaBerikut = true;     // hasil OCR berikutnya langsung diproses
     }
+    function bacaTeksKemasanOCR() { jepretDeteksiBarang(); }
 
-    // ---------- OCR (cadangan, selalu minta konfirmasi) ----------
+    // ---------- OCR otomatis (nama merek pada kemasan) ----------
     function normTeks(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
 
     function jarakEdit(a, b) {
       const m = a.length, n = b.length;
-      if (Math.abs(m - n) > 1) return 2;
+      if (Math.abs(m - n) > 2) return 3;
       const dp = Array.from({ length: m + 1 }, (_, i) => [i]);
       for (let j = 1; j <= n; j++) dp[0][j] = j;
       for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
@@ -697,61 +706,111 @@
       return s;
     }
 
+    // Merek = kata pertama nama produk (Ciptaden, Sunlight, Sarimi, ...). Kecocokan merek = penentu utama.
+    function merekProduk(b) { return normTeks(b.nama).split(' ')[0] || ''; }
+
     function cariKandidatOCR(teks) {
       const token = normTeks(teks).split(' ').filter(Boolean);
       const gabung = ' ' + token.join(' ') + ' ';
-      const daftar = (db.barang || []).map(b => ({ b, kata: kataProduk(b) }));
+      const daftar = (db.barang || []).map(b => ({ b, kata: kataProduk(b), merek: merekProduk(b) }));
       const df = {};
       daftar.forEach(d => d.kata.forEach(k => { df[k] = (df[k] || 0) + 1; }));
-      const ada = (k) => {
+
+      const adaKata = (k) => {
         if (gabung.includes(' ' + k + ' ')) return true;
         if (k.length >= 5 && gabung.includes(k)) return true;
         if (k.length >= 6) return token.some(t => t.length >= 5 && jarakEdit(t, k) <= 1);
         return false;
       };
+      const adaMerek = (m) => {
+        if (m.length < 4) return false;
+        if (gabung.includes(' ' + m + ' ')) return true;
+        if (m.length >= 5 && gabung.includes(m)) return true;       // "ciptadent" memuat "ciptaden"
+        if (m.length >= 5) {
+          const maks = m.length >= 7 ? 2 : 1;                         // toleransi salah baca huruf
+          return token.some(t => t.length >= 4 && Math.abs(t.length - m.length) <= 1 && jarakEdit(t, m) <= maks);
+        }
+        return false;
+      };
+
       daftar.forEach(d => {
-        d.skor = 0;
-        d.kata.forEach(k => { if (ada(k)) d.skor += (1 + k.length / 10) / df[k]; });   // kata langka = bobot besar
+        d.merekCocok = adaMerek(d.merek);
+        d.skor = d.merekCocok ? 10 : 0;
+        d.kata.forEach(k => { if (adaKata(k)) d.skor += (1 + k.length / 10) / df[k]; });   // kata langka = bobot besar
       });
       return daftar.filter(d => d.skor > 0).sort((a, b) => b.skor - a.skor);
     }
 
-    async function bacaTeksKemasanOCR() {
-      const video = document.getElementById('videoCam');
-      const canvas = document.getElementById('canvasCam');
-      if (!streamKamera || !video.videoWidth) return setStatusScan('Kamera belum aktif. Pilih produk manual lewat tombol di atas.');
-      if (sedangMemindai) return setStatusScan('Sedang memindai, tunggu sebentar...');
+    function keputusanOCR(teks) {
+      const force = paksaBerikut; paksaBerikut = false;
+      const daftar = cariKandidatOCR(teks);
+      const top = daftar[0], kedua = daftar[1];
+      const sekarang = Date.now();
 
-      const id = sesiId;
-      sedangMemindai = true;
-      setStatusScan('Membaca teks kemasan...');
-      try {
-        const vW = video.videoWidth, vH = video.videoHeight;
-        const cw = vW * 0.8, ch = vH * 0.6;
-        canvas.width = 900;
-        canvas.height = Math.round(900 * ch / cw);
-        const ctx = canvas.getContext('2d');
-        ctx.filter = 'grayscale(1) contrast(1.4)';
-        ctx.drawImage(video, (vW - cw) / 2, (vH - ch) / 2, cw, ch, 0, 0, canvas.width, canvas.height);
-        ctx.filter = 'none';
+      if (!top) {
+        kandidatTerakhir = { kode: null, hitung: 0 };
+        kunciOCR.hilang++;
+        if (kunciOCR.hilang >= 2 && sekarang - kunciOCR.waktu > 3000) kunciOCR.kode = null;   // barang sudah diangkat -> boleh scan lagi
+        if (force) setStatusScan('Teks tidak terbaca. Dekatkan kemasan, hindari silau.');
+        return;
+      }
 
-        const result = await Tesseract.recognize(canvas, 'eng');
-        if (id !== sesiId) return;      // kamera sudah ditutup / sesi baru -> abaikan hasil telat
-        const daftar = cariKandidatOCR(result.data.text || '');
-        if (!daftar.length) {
-          setStatusScan('Teks tidak dikenali. Dekatkan kemasan, pastikan nama merek jelas & tidak silau.');
-        } else {
-          setStatusScan('Periksa hasil di bawah, lalu pilih yang sesuai.');
-          tampilkanKandidat(daftar.slice(0, 3));
-        }
-      } catch (e) {
-        if (id === sesiId) setStatusScan('Gagal membaca teks kemasan.');
-      } finally {
-        sedangMemindai = false;
+      const kode = top.b.kode;
+      if (!force && kunciOCR.kode === kode) { kunciOCR.hilang = 0; return; }   // barang yang sama masih di depan kamera
+
+      const jelas = !kedua || (top.skor - kedua.skor >= 1.5) || (top.skor >= kedua.skor * 1.4);
+      if (!jelas) {
+        // beberapa varian sama-sama cocok (mis. dua jenis dengan merek yang sama): baru di sini perlu memilih
+        tampilkanKandidat(daftar.filter(d => d.skor >= top.skor - 1.5).slice(0, 3));
+        setStatusScan('Varian mirip terdeteksi, pilih yang sesuai.');
+        return;
+      }
+
+      if (top.merekCocok || force) { tambahSesi(kode, 'Teks'); return; }
+
+      // tanpa merek: hanya dari kata kunci -> harus terbaca sama 2x berturut-turut
+      if (top.skor >= 2.5) {
+        if (kandidatTerakhir.kode === kode) { tambahSesi(kode, 'Teks'); return; }
+        kandidatTerakhir = { kode, hitung: 1 };
       }
     }
 
-        function renderKatalogKasir() {
+    async function mulaiLoopOCR(id) {
+      setStatusScan('Menyiapkan pengenal teks...');
+      let w;
+      try {
+        w = ocrWorker || await Tesseract.createWorker('eng');
+        if (id !== sesiId) { w.terminate().catch(() => {}); if (ocrWorker === w) ocrWorker = null; return; }
+        ocrWorker = w;
+      } catch (e) {
+        if (id === sesiId) setStatusScan('Pengenal teks gagal dimuat. Pakai barcode atau tombol + di atas.');
+        return;
+      }
+      setStatusScan('Arahkan kemasan ke kotak. Terdeteksi otomatis.');
+      const video = document.getElementById('videoCam');
+      const c = document.createElement('canvas');   // kanvas khusus OCR agar tidak bentrok dengan pembaca barcode
+
+      while (id === sesiId) {
+        if (kandidatAktif || !streamKamera || !video.videoWidth) { await jeda(400); continue; }
+        try {
+          const vW = video.videoWidth, vH = video.videoHeight;
+          const cw = vW * 0.8, ch = vH * 0.6;       // sama dengan kotak bidik di layar
+          c.width = 900; c.height = Math.round(900 * ch / cw);
+          const ctx = c.getContext('2d');
+          ctx.filter = 'grayscale(1) contrast(1.4)';
+          ctx.drawImage(video, (vW - cw) / 2, (vH - ch) / 2, cw, ch, 0, 0, c.width, c.height);
+          ctx.filter = 'none';
+          const hasil = await w.recognize(c);
+          if (id !== sesiId) return;                // hasil telat dari sesi lama dibuang
+          if (!kandidatAktif) keputusanOCR(hasil.data.text || '');
+        } catch (e) {
+          if (id !== sesiId) return;
+        }
+        await jeda(200);
+      }
+    }
+
+    function renderKatalogKasir() {
       const q = (document.getElementById('cariBarangKasir').value || '').toLowerCase();
       const wadah = document.getElementById('katalogKasir'); wadah.innerHTML = '';
       (db.barang || []).filter(b => b.nama.toLowerCase().includes(q) || b.kode.toLowerCase().includes(q)).forEach(item => {
