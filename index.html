@@ -2,13 +2,13 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Kasir Pintar - Loundra Scent Lab</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Library Barcode & QR Scanner -->
   <script src="https://unpkg.com/html5-qrcode"></script>
-  <!-- Library AI OCR (Membaca Teks pada Bungkus Kemasan Barang Tanpa Barcode) -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="manifest" href="manifest.webmanifest">
   <style>
     body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: #f4f6f8; user-select: none; }
     .active-nav { background-color: #16a34a !important; color: white !important; }
@@ -17,6 +17,32 @@
       50% { border-color: #facc15; transform: scale(1.03); }
     }
     .reticle-box { animation: pulseBorder 1.8s infinite ease-in-out; }
+    
+    /* Watermark Transparan pada Struk */
+    .struk-watermark {
+      position: relative;
+    }
+    .struk-watermark::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      width: 180px;
+      height: 180px;
+      background-image: url('icon.svg');
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: contain;
+      opacity: 0.07;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .struk-content {
+      position: relative;
+      z-index: 1;
+    }
+
     @media print {
       body * { visibility: hidden; }
       #areaStruk, #areaStruk * { visibility: visible; }
@@ -35,7 +61,7 @@
           <i class="fa-solid fa-cash-register"></i>
         </div>
         <h1 class="text-xl font-extrabold text-gray-800">Loundra Scent Lab</h1>
-        <p class="text-xs text-gray-500">Kasir Pintar Scan Tanpa Barcode</p>
+        <p class="text-xs text-gray-500">Kasir Pintar Pewangi, Sabun & Kendaraan</p>
       </div>
       <div class="space-y-3.5">
         <div>
@@ -50,12 +76,13 @@
           Masuk Aplikasi Kasir
         </button>
         <div class="text-[11px] text-center text-gray-500 bg-gray-100 p-2.5 rounded-xl">
+          Default: <b>admin</b> / <b>1234</b>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ================= 2. MODAL KAMERA SCANNER AI (PERSIS VIDEO 00:04 - 00:08) ================= -->
+  <!-- ================= 2. MODAL KAMERA SCANNER AI ================= -->
   <div id="modalScanner" class="fixed inset-0 bg-black z-50 hidden flex-col justify-between">
     <div class="p-4 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent text-white z-10">
       <button onclick="tutupKameraScan()" class="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
@@ -64,9 +91,9 @@
       <div class="text-center">
         <div class="bg-emerald-600/90 px-3 py-1 rounded-full text-xs font-bold inline-flex items-center space-x-1.5">
           <i class="fa-solid fa-wand-magic-sparkles"></i>
-          <span>Deteksi Produk AI Aktif</span>
+          <span>Deteksi AI Aktif (Pewangi & Sabun)</span>
         </div>
-        <p id="statusScanTeks" class="text-[11px] text-gray-200 mt-1">Arahkan bungkus barang ke kotak tengah</p>
+        <p id="statusScanTeks" class="text-[11px] text-gray-200 mt-1">Arahkan kemasan ke kotak tengah</p>
       </div>
       <button onclick="selesaiScanMasukKeranjang()" class="bg-emerald-500 hover:bg-emerald-600 px-3.5 py-1.5 rounded-xl text-xs font-bold shadow">
         Selesai (<span id="jumlahScanBadge">0</span>)
@@ -77,23 +104,20 @@
       <video id="videoCam" autoplay playsinline muted class="w-full h-full object-cover"></video>
       <canvas id="canvasCam" class="hidden"></canvas>
 
-      <!-- Kotak Bidik Tengah (Reticle) Persis Video -->
       <div onclick="jepretDeteksiBarang()" class="reticle-box w-56 h-56 sm:w-64 sm:h-64 border-2 border-white rounded-3xl flex flex-col items-center justify-center relative cursor-pointer bg-white/10 backdrop-blur-[1px]">
         <span class="text-white text-2xl font-light">+</span>
         <span id="toastScanItem" class="absolute -top-10 bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg hidden"></span>
         <span class="absolute bottom-3 text-[10px] text-white/90 bg-black/50 px-2.5 py-0.5 rounded-full">
-          Ketuk kotak / tombol kuning saat barang di tengah
+          Ketuk untuk Deteksi Cepat
         </span>
       </div>
 
-      <!-- Pilihan Cepat Barang di Kamera -->
       <div class="absolute top-2 left-2 right-2 flex space-x-1.5 overflow-x-auto pb-1 px-2">
-        <span class="text-[10px] text-white/80 self-center whitespace-nowrap">Deteksi Cepat:</span>
+        <span class="text-[10px] text-white/80 self-center whitespace-nowrap">Pilihan Cepat:</span>
         <div id="quickPickCam" class="flex space-x-1.5"></div>
       </div>
     </div>
 
-    <!-- Bar Bawah Kamera: Thumbnail Barang Ter-scan & Tombol Trigger Kuning -->
     <div class="bg-gradient-to-t from-black via-black/90 to-transparent p-4 space-y-3 z-10">
       <div id="trayScannedItems" class="flex space-x-2 overflow-x-auto py-1 min-h-[52px] items-center">
         <p class="text-xs text-gray-400 italic">Barang yang di-scan akan berjejer di sini...</p>
@@ -101,7 +125,7 @@
 
       <div class="flex justify-around items-center pt-1">
         <button onclick="selesaiScanMasukKeranjang()" class="flex flex-col items-center text-white text-xs">
-          <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-1 relative">
+          <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-1">
             <i class="fa-solid fa-basket-shopping"></i>
           </div>
           <span>Lanjut Bayar</span>
@@ -121,23 +145,20 @@
     </div>
   </div>
 
-  <!-- ================= 3. HEADER ATAS (DENGAN TOMBOL BACKUP KE DRIVE) ================= -->
+  <!-- ================= 3. HEADER ATAS ================= -->
   <header class="bg-emerald-600 text-white px-4 py-3 shadow-md flex justify-between items-center sticky top-0 z-30">
     <div class="flex items-center space-x-2.5">
-      <i class="fa-solid fa-store text-xl"></i>
+      <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-emerald-600 font-bold">
+        <i class="fa-solid fa-spray-can-sparkles"></i>
+      </div>
       <div>
         <h1 class="font-bold text-base leading-tight">Loundra Scent Lab</h1>
         <p id="infoUserLogin" class="text-[11px] text-emerald-100">Memuat...</p>
       </div>
     </div>
-    <div class="flex items-center space-x-1.5 sm:space-x-2">
-      <!-- Tombol Simpan Backup Baru ke Google Drive (Tanpa Timpa File Lama) -->
-      <button id="btnBackupDrive" onclick="buatBackupKeDrive()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-xl text-xs font-bold shadow flex items-center space-x-1 transition">
-        <i class="fa-brands fa-google-drive"></i>
-        <span class="hidden sm:inline">Backup Kode ke Drive</span>
-      </button>
-      <button onclick="muatDataServer()" class="bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 rounded-xl text-xs font-semibold">
-        <i class="fa-solid fa-rotate mr-1"></i> <span class="hidden sm:inline">Sinkron</span>
+    <div class="flex items-center space-x-2">
+      <button onclick="resetDataDefault()" class="bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 rounded-xl text-xs font-semibold">
+        <i class="fa-solid fa-rotate mr-1"></i> Reset Data
       </button>
       <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-2.5 py-1.5 rounded-xl text-xs">
         <i class="fa-solid fa-power-off"></i>
@@ -149,16 +170,16 @@
   <nav class="bg-white shadow-sm border-b sticky top-[52px] z-20 overflow-x-auto">
     <div class="flex space-x-1 p-1.5 max-w-7xl mx-auto">
       <button onclick="bukaTab('tabKasir', this)" class="nav-btn active-nav flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 whitespace-nowrap text-gray-600">
-        <i class="fa-solid fa-camera"></i> <span>Pusat Kasir & Scan</span>
+        <i class="fa-solid fa-camera"></i> <span>Kasir & Scan AI</span>
       </button>
       <button onclick="bukaTab('tabDashboard', this)" class="nav-btn flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 whitespace-nowrap text-gray-600">
         <i class="fa-solid fa-chart-line"></i> <span>Trending & Restock</span>
       </button>
       <button onclick="bukaTab('tabStok', this)" class="nav-btn flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 whitespace-nowrap text-gray-600">
-        <i class="fa-solid fa-boxes-stacked"></i> <span>Stok Berjalan</span>
+        <i class="fa-solid fa-boxes-stacked"></i> <span>Stok Barang</span>
       </button>
       <button onclick="bukaTab('tabPembelian', this)" class="nav-btn flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 whitespace-nowrap text-gray-600">
-        <i class="fa-solid fa-cart-flatbed"></i> <span>Input Pembelian Toko</span>
+        <i class="fa-solid fa-cart-flatbed"></i> <span>Pembelian Toko</span>
       </button>
     </div>
   </nav>
@@ -166,15 +187,13 @@
   <!-- ================= 5. KONTEN UTAMA ================= -->
   <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5">
 
-    <!-- TAB 1: PUSAT KASIR & HASIL SCAN MULTI-PRODUK -->
+    <!-- TAB 1: KASIR -->
     <section id="tabKasir" class="tab-content grid grid-cols-1 lg:grid-cols-12 gap-5">
-      
-      <!-- Kolom Kiri: Panel Pusat Kasir & Katalog Tap -->
       <div class="lg:col-span-5 space-y-4">
         <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
           <div class="flex justify-between items-center">
             <h2 class="font-bold text-gray-800 text-sm">Pusat Kasir</h2>
-            <span class="text-[11px] bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold">Mode Auto-Scan Aktif</span>
+            <span class="text-[11px] bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold">Fast Response</span>
           </div>
 
           <div class="space-y-2">
@@ -183,26 +202,26 @@
                 <i class="fa-solid fa-camera"></i>
               </div>
               <div class="flex-1">
-                <h3 class="font-bold text-gray-800 text-sm">Scan Penjualan (Tanpa Barcode)</h3>
-                <p class="text-[11px] text-gray-500">Scan beberapa barang sekaligus pakai kamera HP/Tab</p>
+                <h3 class="font-bold text-gray-800 text-sm">Scan Kemasan (Pewangi, Sabun, Kendaraan)</h3>
+                <p class="text-[11px] text-gray-500">Scan multi-produk otomatis dengan kamera</p>
               </div>
               <i class="fa-solid fa-chevron-right text-emerald-600"></i>
             </button>
 
-            <button onclick="muatContoh6ProdukVideo()" class="w-full p-3 rounded-2xl border hover:bg-amber-50 flex items-center space-x-3 text-left transition">
+            <button onclick="muatContohProdukLab()" class="w-full p-3 rounded-2xl border hover:bg-amber-50 flex items-center space-x-3 text-left transition">
               <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-lg shrink-0">
                 <i class="fa-solid fa-bolt"></i>
               </div>
               <div class="flex-1">
-                <h3 class="font-bold text-gray-800 text-xs">Simulasi Scan 6 Barang (Persis Video)</h3>
-                <p class="text-[11px] text-gray-500">Muat Bihunku, Indomie, Sarimi, Bayclin, Pepsodent, Sunlight</p>
+                <h3 class="font-bold text-gray-800 text-xs">Simulasi Cepat 6 Produk Loundra Scent Lab</h3>
+                <p class="text-[11px] text-gray-500">Muat instan produk sabun baju, pewangi & kendaraan</p>
               </div>
             </button>
           </div>
 
           <div class="pt-2 border-t">
             <div class="relative">
-              <input type="text" id="cariBarangKasir" oninput="renderKatalogKasir()" placeholder="Cari atau ketuk barang di bawah..." class="w-full p-2.5 pl-9 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none">
+              <input type="text" id="cariBarangKasir" oninput="renderKatalogKasir()" placeholder="Cari nama produk..." class="w-full p-2.5 pl-9 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-xs"></i>
             </div>
           </div>
@@ -211,11 +230,10 @@
         </div>
       </div>
 
-      <!-- Kolom Kanan: Hasil Scan Multi-Produk & Pembayaran -->
       <div class="lg:col-span-7">
         <div class="bg-white rounded-2xl shadow-md border overflow-hidden">
           <div class="p-4 border-b flex justify-between items-center bg-gray-50">
-            <h2 class="font-extrabold text-gray-800 text-base">Hasil Scan Multi-Produk</h2>
+            <h2 class="font-extrabold text-gray-800 text-base">Keranjang & Pembayaran</h2>
             <button onclick="kosongkanKeranjang()" class="text-xs text-red-500 font-bold hover:underline">Hapus Semua</button>
           </div>
 
@@ -228,10 +246,6 @@
                 <span id="labelJumlahProduk">Ringkasan (0 produk)</span>
               </div>
               <div id="ringkasanTeks" class="text-xs text-gray-600 space-y-1.5 pt-1"></div>
-
-              <button onclick="fokusTambahManual()" class="w-full py-2 mt-2 border border-dashed border-amber-400 rounded-xl text-xs font-bold text-gray-700 hover:bg-amber-100/60 transition">
-                + Tambah Item Manual
-              </button>
 
               <div class="border-t border-amber-200 pt-2.5 flex justify-between items-center">
                 <span class="font-bold text-sm text-gray-800">Total Keseluruhan</span>
@@ -267,14 +281,9 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-12 gap-2.5 pt-1">
-              <button onclick="bukaKameraScan()" class="col-span-5 py-3.5 rounded-xl border border-gray-300 font-bold text-xs text-gray-700 hover:bg-gray-100">
-                + Scan Lagi
-              </button>
-              <button onclick="prosesTransaksi()" id="btnSimpanTrx" class="col-span-7 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-md text-xs transition">
-                Simpan Transaksi
-              </button>
-            </div>
+            <button onclick="prosesTransaksi()" id="btnSimpanTrx" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-md text-xs transition">
+              Simpan Transaksi & Cetak Struk
+            </button>
           </div>
         </div>
       </div>
@@ -288,7 +297,7 @@
           <h3 id="statOmzet" class="text-2xl font-extrabold text-gray-800 mt-1">Rp 0</h3>
         </div>
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-l-4 border-l-blue-600">
-          <p class="text-xs text-gray-500 font-bold uppercase">Total Pembelian / Keperluan Toko</p>
+          <p class="text-xs text-gray-500 font-bold uppercase">Total Pengeluaran Toko</p>
           <h3 id="statPengeluaran" class="text-2xl font-extrabold text-gray-800 mt-1">Rp 0</h3>
         </div>
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-l-4 border-l-red-500">
@@ -313,55 +322,55 @@
       </div>
     </section>
 
-    <!-- TAB 3: STOK BERJALAN -->
+    <!-- TAB 3: STOK -->
     <section id="tabStok" class="tab-content hidden grid grid-cols-1 lg:grid-cols-12 gap-5">
       <div id="formMasterBarang" class="lg:col-span-4 bg-white p-4 rounded-2xl shadow-sm border h-fit space-y-3">
-        <h3 class="font-bold text-gray-800 text-sm"><i class="fa-solid fa-box-open text-emerald-600 mr-1"></i> Input / Update Stok Barang Jualan</h3>
+        <h3 class="font-bold text-gray-800 text-sm"><i class="fa-solid fa-box-open text-emerald-600 mr-1"></i> Tambah / Update Produk</h3>
         <div class="space-y-2.5 text-xs">
           <div>
             <label class="font-bold text-gray-600">Kode Barang</label>
-            <input type="text" id="brgKode" placeholder="Contoh: BRG007" class="w-full p-2.5 border rounded-xl mt-1">
+            <input type="text" id="brgKode" placeholder="Contoh: LSL007" class="w-full p-2.5 border rounded-xl mt-1">
           </div>
           <div>
-            <label class="font-bold text-gray-600">Nama Barang</label>
-            <input type="text" id="brgNama" placeholder="Contoh: Teh Pucuk Harum" class="w-full p-2.5 border rounded-xl mt-1">
+            <label class="font-bold text-gray-600">Nama Produk</label>
+            <input type="text" id="brgNama" placeholder="Contoh: Sabun Cuci Motor Scent" class="w-full p-2.5 border rounded-xl mt-1">
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="font-bold text-gray-600">Kategori</label>
-              <input type="text" id="brgKategori" placeholder="Minuman" class="w-full p-2.5 border rounded-xl mt-1">
+              <input type="text" id="brgKategori" placeholder="Kendaraan" class="w-full p-2.5 border rounded-xl mt-1">
             </div>
             <div>
-              <label class="font-bold text-gray-600">Satuan / Varian</label>
-              <input type="text" id="brgSatuan" placeholder="Botol 350ml" class="w-full p-2.5 border rounded-xl mt-1">
+              <label class="font-bold text-gray-600">Satuan</label>
+              <input type="text" id="brgSatuan" placeholder="Botol 500ml" class="w-full p-2.5 border rounded-xl mt-1">
             </div>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="font-bold text-gray-600">Harga Beli (Rp)</label>
-              <input type="number" id="brgBeli" placeholder="2800" class="w-full p-2.5 border rounded-xl mt-1">
+              <input type="number" id="brgBeli" placeholder="15000" class="w-full p-2.5 border rounded-xl mt-1">
             </div>
             <div>
               <label class="font-bold text-gray-600">Harga Jual (Rp)</label>
-              <input type="number" id="brgJual" placeholder="3500" class="w-full p-2.5 border rounded-xl mt-1">
+              <input type="number" id="brgJual" placeholder="25000" class="w-full p-2.5 border rounded-xl mt-1">
             </div>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="font-bold text-gray-600">Stok Berjalan</label>
-              <input type="number" id="brgStok" placeholder="24" class="w-full p-2.5 border rounded-xl mt-1">
+              <input type="number" id="brgStok" placeholder="30" class="w-full p-2.5 border rounded-xl mt-1">
             </div>
             <div>
-              <label class="font-bold text-gray-600">Min. Stok Restock</label>
+              <label class="font-bold text-gray-600">Min. Restock</label>
               <input type="number" id="brgMin" placeholder="5" class="w-full p-2.5 border rounded-xl mt-1">
             </div>
           </div>
           <div>
-            <label class="font-bold text-gray-600">Kata Kunci Kemasan (Untuk Scan AI)</label>
-            <input type="text" id="brgKataKunci" placeholder="teh pucuk,harum,minuman" class="w-full p-2.5 border rounded-xl mt-1">
+            <label class="font-bold text-gray-600">Kata Kunci AI</label>
+            <input type="text" id="brgKataKunci" placeholder="sabun,motor,cuci" class="w-full p-2.5 border rounded-xl mt-1">
           </div>
           <button onclick="simpanMasterBarang()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl mt-1">
-            Simpan Barang ke Google Database
+            Simpan Produk
           </button>
         </div>
       </div>
@@ -369,16 +378,16 @@
       <div class="lg:col-span-8 bg-white p-4 rounded-2xl shadow-sm border">
         <div class="flex justify-between items-center mb-3">
           <h3 class="font-bold text-gray-800 text-sm">Stok Berjalan Real-Time</h3>
-          <input type="text" id="cariTabelStok" oninput="renderTabelStok()" placeholder="Cari barang..." class="p-2 border rounded-xl text-xs">
+          <input type="text" id="cariTabelStok" oninput="renderTabelStok()" placeholder="Cari..." class="p-2 border rounded-xl text-xs">
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs">
             <thead>
               <tr class="bg-gray-100 text-gray-600 uppercase">
                 <th class="p-2.5">Kode</th>
-                <th class="p-2.5">Nama Barang</th>
+                <th class="p-2.5">Nama Produk</th>
                 <th class="p-2.5">Harga Jual</th>
-                <th class="p-2.5">Stok Sisa</th>
+                <th class="p-2.5">Stok</th>
                 <th class="p-2.5">Status</th>
                 <th class="p-2.5">Aksi</th>
               </tr>
@@ -389,29 +398,29 @@
       </div>
     </section>
 
-    <!-- TAB 4: INPUT PENERIMAAN PEMBELIAN & KEPERLUAN TOKO -->
+    <!-- TAB 4: PEMBELIAN -->
     <section id="tabPembelian" class="tab-content hidden grid grid-cols-1 lg:grid-cols-12 gap-5">
       <div class="lg:col-span-4 bg-white p-4 rounded-2xl shadow-sm border h-fit space-y-3">
-        <h3 class="font-bold text-gray-800 text-sm"><i class="fa-solid fa-file-invoice-dollar text-emerald-600 mr-1"></i> Input Penerimaan Pembelian / Toko</h3>
+        <h3 class="font-bold text-gray-800 text-sm"><i class="fa-solid fa-file-invoice-dollar text-emerald-600 mr-1"></i> Catat Pembelian Toko</h3>
         <div class="space-y-2.5 text-xs">
           <div>
-            <label class="font-bold text-gray-600">Jenis Pembelian</label>
+            <label class="font-bold text-gray-600">Jenis</label>
             <select id="beliJenis" onchange="togglePilihBarangBeli()" class="w-full p-2.5 border rounded-xl mt-1 bg-white">
               <option value="Stok Jualan">Stok Jualan (Otomatis Tambah Stok)</option>
-              <option value="Keperluan Toko">Keperluan Toko (Plastik, Listrik, Operasional)</option>
+              <option value="Keperluan Toko">Keperluan Operasional / Toko</option>
             </select>
           </div>
           <div id="boxPilihBarangStok">
-            <label class="font-bold text-gray-600">Pilih Barang</label>
+            <label class="font-bold text-gray-600">Pilih Produk</label>
             <select id="beliKodeBarang" onchange="isiNamaBarangBeli()" class="w-full p-2.5 border rounded-xl mt-1 bg-white"></select>
           </div>
           <div>
-            <label class="font-bold text-gray-600">Nama Item / Keperluan</label>
-            <input type="text" id="beliNamaItem" placeholder="Contoh: Restock Indomie / Beli Kantong Kresek" class="w-full p-2.5 border rounded-xl mt-1">
+            <label class="font-bold text-gray-600">Keterangan / Nama Item</label>
+            <input type="text" id="beliNamaItem" placeholder="Contoh: Restock Pewangi Baju" class="w-full p-2.5 border rounded-xl mt-1">
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="font-bold text-gray-600">Qty Masuk</label>
+              <label class="font-bold text-gray-600">Qty</label>
               <input type="number" id="beliQty" value="10" class="w-full p-2.5 border rounded-xl mt-1">
             </div>
             <div>
@@ -419,28 +428,23 @@
               <input type="number" id="beliBiaya" placeholder="50000" class="w-full p-2.5 border rounded-xl mt-1">
             </div>
           </div>
-          <div>
-            <label class="font-bold text-gray-600">Supplier / Catatan History</label>
-            <input type="text" id="beliKet" placeholder="Agen Grosir Jaya" class="w-full p-2.5 border rounded-xl mt-1">
-          </div>
           <button onclick="simpanDataPembelian()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl mt-1">
-            Simpan History Pembelian
+            Simpan Pembelian
           </button>
         </div>
       </div>
 
       <div class="lg:col-span-8 bg-white p-4 rounded-2xl shadow-sm border">
-        <h3 class="font-bold text-gray-800 text-sm mb-3">History Penerimaan Pembelian & Pengeluaran Toko</h3>
+        <h3 class="font-bold text-gray-800 text-sm mb-3">History Pembelian Toko</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs">
             <thead>
               <tr class="bg-gray-100 text-gray-600 uppercase">
                 <th class="p-2.5">Waktu</th>
                 <th class="p-2.5">Jenis</th>
-                <th class="p-2.5">Nama Item / Keperluan</th>
-                <th class="p-2.5">Qty</th>
-                <th class="p-2.5">Total Biaya</th>
                 <th class="p-2.5">Keterangan</th>
+                <th class="p-2.5">Qty</th>
+                <th class="p-2.5">Biaya</th>
               </tr>
             </thead>
             <tbody id="tabelPembelianBody" class="divide-y"></tbody>
@@ -451,47 +455,42 @@
 
   </main>
 
-  <!-- ================= 6. MODAL CETAK STRUK ================= -->
+  <!-- ================= 6. MODAL STRUK (DENGAN WATERMARK) ================= -->
   <div id="modalStruk" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4">
     <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-5 space-y-4">
-      <div id="areaStruk" class="text-xs font-mono space-y-2 text-gray-800 p-2">
-        <div class="text-center border-b border-dashed pb-2">
-          <h2 class="font-extrabold text-sm">Loundra Scent Lab</h2>
-          <p id="strukWaktu" class="text-[11px] text-gray-500"></p>
-        </div>
-        <div id="strukListItems" class="space-y-1.5 border-b border-dashed pb-2"></div>
-        <div class="space-y-1 pt-1">
-          <div class="flex justify-between font-extrabold text-sm">
-            <span>TOTAL</span>
-            <span id="strukTotal"></span>
+      <div id="areaStruk" class="text-xs font-mono space-y-2 text-gray-800 p-3 struk-watermark bg-white rounded-xl border">
+        <div class="struk-content space-y-2">
+          <div class="text-center border-b border-dashed pb-2">
+            <h2 class="font-extrabold text-sm text-emerald-700">Loundra Scent Lab</h2>
+            <p class="text-[10px] text-gray-500">Pewangi & Sabun Baju serta Kendaraan</p>
+            <p id="strukWaktu" class="text-[10px] text-gray-500"></p>
           </div>
-          <div class="flex justify-between text-gray-600">
-            <span id="strukMetode">Tunai</span>
-            <span id="strukDiterima"></span>
+          <div id="strukListItems" class="space-y-1.5 border-b border-dashed pb-2"></div>
+          <div class="space-y-1 pt-1">
+            <div class="flex justify-between font-extrabold text-sm">
+              <span>TOTAL</span>
+              <span id="strukTotal"></span>
+            </div>
+            <div class="flex justify-between text-gray-600">
+              <span id="strukMetode">Tunai</span>
+              <span id="strukDiterima"></span>
+            </div>
+            <div class="flex justify-between font-bold">
+              <span>Kembalian</span>
+              <span id="strukKembalian"></span>
+            </div>
           </div>
-          <div class="flex justify-between font-bold">
-            <span>Kembalian</span>
-            <span id="strukKembalian"></span>
+          <div class="text-center border-t border-dashed pt-2 text-[10px] text-gray-400">
+            Terima kasih telah berbelanja!<br>Loundra Scent Lab - Wangi & Bersih Sempurna
           </div>
-        </div>
-        <div class="text-center border-t border-dashed pt-2 text-[10px] text-gray-400">
-          Terima kasih sudah berbelanja!
         </div>
       </div>
 
       <div class="space-y-2 no-print">
         <button onclick="window.print()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 shadow">
-          <i class="fa-solid fa-print"></i> <span>Print Bluetooth</span>
+          <i class="fa-solid fa-print"></i> <span>Cetak Struk / PDF</span>
         </button>
-        <div class="grid grid-cols-2 gap-2">
-          <button onclick="bagikanStrukWA()" class="border py-2.5 rounded-xl font-bold text-xs text-gray-700 hover:bg-gray-50">
-            <i class="fa-solid fa-share-nodes mr-1"></i> Bagikan
-          </button>
-          <button onclick="window.print()" class="border py-2.5 rounded-xl font-bold text-xs text-gray-700 hover:bg-gray-50">
-            <i class="fa-solid fa-file-pdf mr-1"></i> Print PDF
-          </button>
-        </div>
-        <button onclick="tutupStruk()" class="w-full text-center text-xs text-gray-400 hover:text-gray-600 pt-1">
+        <button onclick="tutupStruk()" class="w-full text-center text-xs text-gray-500 hover:text-gray-800 pt-1 font-bold">
           Tutup & Transaksi Baru
         </button>
       </div>
@@ -499,8 +498,23 @@
   </div>
 
   <script>
+    // Inisialisasi Data Default Loundra Scent Lab (Pewangi, Sabun Baju & Kendaraan)
+    const defaultBarang = [
+      { kode: 'LSL001', nama: 'Pewangi Laundry Exclusive Scent', kategori: 'Pewangi Baju', hargaBeli: 12000, hargaJual: 18000, stok: 35, minStok: 5, satuan: 'Liter', kataKunci: 'pewangi,laundry,baju,pengharum' },
+      { kode: 'LSL002', nama: 'Sabun Cair Konsentrat Pakaian', kategori: 'Sabun Baju', hargaBeli: 15000, hargaJual: 22000, stok: 40, minStok: 10, satuan: 'Liter', kataKunci: 'sabun,cair,pakaian,baju,deterjen' },
+      { kode: 'LSL003', nama: 'Shampoo & Wash Kendaraan Hydrophobic', kategori: 'Kendaraan', hargaBeli: 18000, hargaJual: 28000, stok: 20, minStok: 5, satuan: 'Botol 500ml', kataKunci: 'shampoo,motor,mobil,kendaraan,cuci' },
+      { kode: 'LSL004', nama: 'Semir Ban & Dashboard Premium Scent', kategori: 'Kendaraan', hargaBeli: 20000, hargaJual: 32000, stok: 15, minStok: 5, satuan: 'Botol 250ml', kataKunci: 'semir,ban,dashboard,kendaraan,kilap' },
+      { kode: 'LSL005', nama: 'Pembersih Noda Serbaguna (Baju & Helm)', kategori: 'Pembersih', hargaBeli: 10000, hargaJual: 16000, stok: 4, minStok: 5, satuan: 'Botol', kataKunci: 'pembersih,noda,helm,baju' },
+      { kode: 'LSL006', nama: 'Parfum Gantung Mobil & Ruangan', kategori: 'Pewangi', hargaBeli: 8000, hargaJual: 15000, stok: 25, minStok: 8, satuan: 'Pcs', kataKunci: 'parfum,gantung,mobil,ruangan,pewangi' }
+    ];
+
+    let db = {
+      barang: JSON.parse(localStorage.getItem('lsl_barang')) || defaultBarang,
+      penjualan: JSON.parse(localStorage.getItem('lsl_penjualan')) || [],
+      pembelian: JSON.parse(localStorage.getItem('lsl_pembelian')) || []
+    };
+
     let currentUser = null;
-    let db = { barang: [], perluRestock: [], penjualanTerbaru: [], trending: [], historyPembelian: [] };
     let keranjang = [];
     let metodeBayar = 'Tunai (Cash)';
     let streamKamera = null;
@@ -509,31 +523,40 @@
     const rupiah = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
     const angkaTitik = (n) => Number(n || 0).toLocaleString('id-ID');
 
-    // 1. LOGIN & OTORITAS USER
+    function simpanKeStorage() {
+      localStorage.setItem('lsl_barang', JSON.stringify(db.barang));
+      localStorage.setItem('lsl_penjualan', JSON.stringify(db.penjualan));
+      localStorage.setItem('lsl_pembelian', JSON.stringify(db.pembelian));
+    }
+
+    function resetDataDefault() {
+      if (confirm('Reset data ke produk awal Loundra Scent Lab?')) {
+        db.barang = defaultBarang;
+        db.penjualan = [];
+        db.pembelian = [];
+        simpanKeStorage();
+        muatDataAplikasi();
+        alert('Data berhasil direset!');
+      }
+    }
+
     function prosesLogin() {
-      const u = document.getElementById('loginUser').value;
-      const p = document.getElementById('loginPass').value;
+      const u = document.getElementById('loginUser').value.trim();
+      const p = document.getElementById('loginPass').value.trim();
       const btn = document.getElementById('btnLogin');
       btn.innerText = 'Memeriksa...';
 
-      google.script.run.withSuccessHandler(res => {
+      setTimeout(() => {
         btn.innerText = 'Masuk Aplikasi Kasir';
-        if (res.success) {
-          currentUser = res;
+        if (u === 'admin' && p === '1234') {
+          currentUser = { username: 'admin', nama: 'Pemilik Toko (Admin)', role: 'Admin' };
           document.getElementById('loginPage').classList.add('hidden');
-          document.getElementById('infoUserLogin').innerText = `${res.nama} (${res.role})`;
-          if (res.role === 'Kasir') {
-            document.getElementById('formMasterBarang').classList.add('hidden');
-            document.getElementById('btnBackupDrive').classList.add('hidden');
-          } else {
-            document.getElementById('formMasterBarang').classList.remove('hidden');
-            document.getElementById('btnBackupDrive').classList.remove('hidden');
-          }
-          muatDataServer();
+          document.getElementById('infoUserLogin').innerText = `${currentUser.nama} (${currentUser.role})`;
+          muatDataAplikasi();
         } else {
-          alert(res.message);
+          alert('Username atau Password salah! (Gunakan admin / 1234)');
         }
-      }).loginUser(u, p);
+      }, 300);
     }
 
     function logout() {
@@ -541,41 +564,12 @@
       document.getElementById('loginPage').classList.remove('hidden');
     }
 
-    // FUNGSI TOMBOL BACKUP KODE KE GOOGLE DRIVE (TANPA TIMPA FILE LAMA)
-    function buatBackupKeDrive() {
-      const catatan = prompt("Masukkan catatan versi backup ini (opsional):", "Versi Stabil Kasir AI");
-      if (catatan === null) return;
-
-      const btn = document.getElementById('btnBackupDrive');
-      const teksAsli = btn.innerHTML;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Menyimpan...</span>';
-      btn.disabled = true;
-
-      google.script.run.withSuccessHandler(res => {
-        btn.innerHTML = teksAsli;
-        btn.disabled = false;
-        if (res && res.success) {
-          if (confirm(`BERHASIL!\n\nFile Backup Baru:\n"${res.namaFile}"\n\ntelah disimpan di folder Google Drive "${res.folder}" tanpa menimpa file lama.\n\nIngin membuka file Google Docs tersebut sekarang?`)) {
-            window.open(res.url, '_blank');
-          }
-        }
-      }).withFailureHandler(err => {
-        btn.innerHTML = teksAsli;
-        btn.disabled = false;
-        alert("Gagal menyimpan ke Drive: " + err.message);
-      }).simpanBackupBaruKeDrive(catatan);
-    }
-
-    // 2. SINKRONISASI DATA DARI GOOGLE SHEETS
-    function muatDataServer() {
-      google.script.run.withSuccessHandler(data => {
-        db = data;
-        renderKatalogKasir();
-        renderKeranjang();
-        renderDashboard();
-        renderTabelStok();
-        renderFormPembelian();
-      }).getAppData();
+    function muatDataAplikasi() {
+      renderKatalogKasir();
+      renderKeranjang();
+      renderDashboard();
+      renderTabelStok();
+      renderFormPembelian();
     }
 
     function bukaTab(idTab, btnEl) {
@@ -585,7 +579,7 @@
       btnEl.classList.add('active-nav');
     }
 
-    // 3. KAMERA SCANNER AI
+    // KAMERA & SCANNER
     async function bukaKameraScan() {
       const modal = document.getElementById('modalScanner');
       modal.classList.remove('hidden');
@@ -594,13 +588,10 @@
       renderTrayCamera();
 
       try {
-        streamKamera = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-          audio: false
-        });
+        streamKamera = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
         document.getElementById('videoCam').srcObject = streamKamera;
       } catch (err) {
-        document.getElementById('statusScanTeks').innerText = 'Mode Simulasi Tablet/Laptop Aktif (Ketuk tombol kuning)';
+        document.getElementById('statusScanTeks').innerText = 'Mode Cepat Aktif (Ketuk tombol kuning)';
       }
     }
 
@@ -609,9 +600,8 @@
         streamKamera.getTracks().forEach(t => t.stop());
         streamKamera = null;
       }
-      const modal = document.getElementById('modalScanner');
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
+      document.getElementById('modalScanner').classList.add('hidden');
+      document.getElementById('modalScanner').classList.remove('flex');
       renderKeranjang();
     }
 
@@ -643,11 +633,9 @@
       const canvas = document.getElementById('canvasCam');
       const statusEl = document.getElementById('statusScanTeks');
 
-      if (!video.srcObject) {
-        return jepretDeteksiBarang();
-      }
+      if (!video.srcObject) return jepretDeteksiBarang();
 
-      statusEl.innerText = 'Menganalisis teks kemasan dengan AI...';
+      statusEl.innerText = 'Menganalisis kemasan...';
       canvas.width = video.videoWidth || 640;
       canvas.height = video.videoHeight || 480;
       canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -655,7 +643,6 @@
       try {
         const result = await Tesseract.recognize(canvas, 'ind+eng');
         const teksTerbaca = (result.data.text || '').toLowerCase();
-        
         let cocok = db.barang.find(b => {
           let keys = (b.kataKunci || b.nama).toLowerCase().split(',');
           return keys.some(k => k.trim() && teksTerbaca.includes(k.trim()));
@@ -680,7 +667,7 @@
       if (ada) {
         ada.qty++;
       } else {
-        keranjang.push({ ...produk, qty: 1, confidence: Math.floor(Math.random() * 3) + 97 });
+        keranjang.push({ ...produk, qty: 1, confidence: 99 });
       }
 
       const toast = document.getElementById('toastScanItem');
@@ -705,33 +692,23 @@
       keranjang.forEach(it => {
         tray.innerHTML += `
           <div class="bg-white/95 text-gray-900 px-3 py-1.5 rounded-xl flex items-center space-x-2 shrink-0 shadow">
-            <div class="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center">
-              ${it.qty}x
-            </div>
+            <div class="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center">${it.qty}x</div>
             <div class="text-[11px] font-bold max-w-[110px] truncate">${it.nama}</div>
           </div>
         `;
       });
     }
 
-    function muatContoh6ProdukVideo() {
+    function muatContohProdukLab() {
       keranjang = [];
-      const targetKode = ['BRG001', 'BRG002', 'BRG003', 'BRG004', 'BRG005', 'BRG006'];
-      targetKode.forEach((kd) => {
-        const p = db.barang.find(b => b.kode === kd);
-        if (p) {
-          keranjang.push({
-            ...p,
-            qty: kd === 'BRG001' ? 2 : 1,
-            confidence: 98
-          });
-        }
+      db.barang.forEach(b => {
+        keranjang.push({ ...b, qty: 1, confidence: 99 });
       });
-      document.getElementById('inputUangDiterima').value = 100000;
+      document.getElementById('inputUangDiterima').value = 150000;
       renderKeranjang();
     }
 
-    // 4. RENDER KATALOG & KARTU MULTI-PRODUK
+    // KATALOG & KERANJANG
     function renderKatalogKasir() {
       const q = document.getElementById('cariBarangKasir').value.toLowerCase();
       const wadah = document.getElementById('katalogKasir');
@@ -763,7 +740,7 @@
       if (ada) {
         ada.qty++;
       } else {
-        keranjang.push({ ...produk, qty: 1, confidence: 98 });
+        keranjang.push({ ...produk, qty: 1, confidence: 99 });
       }
       renderKeranjang();
     }
@@ -787,10 +764,6 @@
       renderKeranjang();
     }
 
-    function fokusTambahManual() {
-      document.getElementById('cariBarangKasir').focus();
-    }
-
     function renderKeranjang() {
       const listEl = document.getElementById('listKeranjang');
       const ringkasanEl = document.getElementById('ringkasanTeks');
@@ -799,7 +772,7 @@
         listEl.innerHTML = `
           <div class="text-center py-10 text-gray-400">
             <i class="fa-solid fa-camera text-3xl mb-2 text-gray-300"></i>
-            <p class="text-xs">Belum ada barang di-scan.<br>Klik <b>Scan Penjualan</b> atau <b>Simulasi Scan 6 Barang</b> di sebelah kiri.</p>
+            <p class="text-xs">Belum ada produk di keranjang.<br>Gunakan <b>Scan Kemasan</b> atau <b>Simulasi Cepat</b>.</p>
           </div>
         `;
         ringkasanEl.innerHTML = '';
@@ -822,37 +795,19 @@
             <div class="flex justify-between items-start">
               <div class="flex items-center space-x-2">
                 <h4 class="font-extrabold text-xs sm:text-sm text-gray-800">${item.nama}</h4>
-                <span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-md">
-                  Confidence: ${item.confidence || 98}%
-                </span>
               </div>
               <button onclick="hapusItemKeranjang('${item.kode}')" class="text-red-400 hover:text-red-600 text-xs">
                 <i class="fa-regular fa-trash-can"></i>
               </button>
             </div>
-
-            <div class="grid grid-cols-12 gap-2 items-center pt-1">
-              <div class="col-span-5">
-                <label class="text-[10px] text-gray-400 block mb-1">Jumlah (Qty)</label>
-                <div class="flex items-center space-x-1.5">
-                  <button onclick="ubahQty('${item.kode}', -1)" class="w-7 h-7 rounded-lg border font-bold text-xs hover:bg-gray-100">-</button>
-                  <span class="w-8 text-center font-bold text-xs">${item.qty}</span>
-                  <button onclick="ubahQty('${item.kode}', 1)" class="w-7 h-7 rounded-lg border font-bold text-xs hover:bg-gray-100">+</button>
-                </div>
+            <div class="flex justify-between items-center pt-1">
+              <div class="flex items-center space-x-1.5">
+                <button onclick="ubahQty('${item.kode}', -1)" class="w-7 h-7 rounded-lg border font-bold text-xs hover:bg-gray-100">-</button>
+                <span class="w-8 text-center font-bold text-xs">${item.qty}</span>
+                <button onclick="ubahQty('${item.kode}', 1)" class="w-7 h-7 rounded-lg border font-bold text-xs hover:bg-gray-100">+</button>
+                <span class="text-xs text-gray-500 ml-1">${item.satuan}</span>
               </div>
-              <div class="col-span-7">
-                <label class="text-[10px] text-gray-400 block mb-1">Satuan / Varian</label>
-                <div class="p-1.5 px-2.5 bg-gray-50 border rounded-lg text-xs text-gray-700 font-medium truncate">
-                  ${item.satuan}
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label class="text-[10px] text-gray-400 block mb-1">Total Penjualan (Rp)</label>
-              <div class="w-full p-2 bg-gray-50 border rounded-xl font-bold text-xs text-gray-800">
-                ${angkaTitik(sub)}
-              </div>
+              <div class="font-extrabold text-xs text-emerald-700">${angkaTitik(sub)}</div>
             </div>
           </div>
         `;
@@ -860,10 +815,7 @@
         ringkasanEl.innerHTML += `
           <div class="flex justify-between items-center">
             <span class="text-gray-700 truncate pr-2">${item.nama}</span>
-            <span class="text-gray-900 font-semibold whitespace-nowrap">
-              <span class="text-gray-400 font-normal mr-1">${item.qty} ${item.satuan} (${angkaTitik(item.hargaJual)})</span>
-              ${rupiah(sub)}
-            </span>
+            <span class="text-gray-900 font-semibold whitespace-nowrap">${item.qty}x • ${rupiah(sub)}</span>
           </div>
         `;
       });
@@ -907,40 +859,45 @@
       const kembali = diterima - total;
       const el = document.getElementById('labelKembalian');
       el.innerText = kembali >= 0 ? rupiah(kembali) : 'Kurang ' + rupiah(Math.abs(kembali));
-      el.className = kembali >= 0 ? 'text-emerald-700 font-extrabold' : 'text-red-600 font-bold';
     }
 
-    // 5. SIMPAN TRANSAKSI & STRUK
+    // TRANSAKSI & CETAK STRUK
     function prosesTransaksi() {
-      if (keranjang.length === 0) return alert('Belum ada produk yang di-scan!');
+      if (keranjang.length === 0) return alert('Keranjang masih kosong!');
       const total = getTotalKeranjang();
       const diterima = Number(document.getElementById('inputUangDiterima').value) || total;
-      if (diterima < total) return alert('Uang diterima kurang dari total belanja!');
+      if (diterima < total) return alert('Uang diterima kurang!');
 
-      const btn = document.getElementById('btnSimpanTrx');
-      btn.innerText = 'Menyimpan...';
-      btn.disabled = true;
+      // Potong Stok
+      keranjang.forEach(cartItem => {
+        const p = db.barang.find(b => b.kode === cartItem.kode);
+        if (p) {
+          p.stok = Math.max(0, p.stok - cartItem.qty);
+        }
+      });
 
-      const payload = {
-        kasir: currentUser ? currentUser.nama : 'Kasir',
-        items: keranjang,
+      const idTrx = 'LSL-' + Date.now().toString().slice(-6);
+      const waktuStr = new Date().toLocaleString('id-ID');
+      const transaksiBaru = {
+        id: idTrx,
+        waktu: waktuStr,
+        items: [...keranjang],
         total: total,
         metode: metodeBayar,
-        uangDiterima: diterima,
+        diterima: diterima,
         kembalian: diterima - total
       };
 
-      google.script.run.withSuccessHandler(res => {
-        btn.innerText = 'Simpan Transaksi';
-        btn.disabled = false;
-        tampilkanStruk(payload, res.waktu);
-        kosongkanKeranjang();
-        muatDataServer();
-      }).simpanTransaksi(payload);
+      db.penjualan.unshift(transaksiBaru);
+      simpanKeStorage();
+
+      tampilkanStruk(transaksiBaru);
+      kosongkanKeranjang();
+      muatDataAplikasi();
     }
 
-    function tampilkanStruk(data, waktu) {
-      document.getElementById('strukWaktu').innerText = waktu;
+    function tampilkanStruk(data) {
+      document.getElementById('strukWaktu').innerText = data.waktu;
       const list = document.getElementById('strukListItems');
       list.innerHTML = '';
       data.items.forEach(it => {
@@ -948,7 +905,7 @@
           <div>
             <div class="font-bold">${it.nama}</div>
             <div class="flex justify-between text-gray-600">
-              <span>${it.qty} ${it.satuan} x ${angkaTitik(it.hargaJual)}</span>
+              <span>${it.qty} x ${angkaTitik(it.hargaJual)}</span>
               <span>${angkaTitik(it.qty * it.hargaJual)}</span>
             </div>
           </div>
@@ -956,7 +913,7 @@
       });
       document.getElementById('strukTotal').innerText = rupiah(data.total);
       document.getElementById('strukMetode').innerText = data.metode;
-      document.getElementById('strukDiterima').innerText = rupiah(data.uangDiterima);
+      document.getElementById('strukDiterima').innerText = rupiah(data.diterima);
       document.getElementById('strukKembalian').innerText = rupiah(data.kembalian);
       document.getElementById('modalStruk').classList.remove('hidden');
       document.getElementById('modalStruk').classList.add('flex');
@@ -967,22 +924,19 @@
       document.getElementById('modalStruk').classList.remove('flex');
     }
 
-    function bagikanStrukWA() {
-      const total = document.getElementById('strukTotal').innerText;
-      const kembali = document.getElementById('strukKembalian').innerText;
-      const teks = encodeURIComponent(`*Struk Loundra Scent Lab*\nTotal: ${total}\nKembalian: ${kembali}\nTerima kasih!`);
-      window.open(`https://wa.me/?text=${teks}`, '_blank');
-    }
-
-    // 6. DASHBOARD, STOK & PEMBELIAN
+    // DASHBOARD & STOK
     function renderDashboard() {
-      document.getElementById('statOmzet').innerText = rupiah(db.totalOmzet);
-      document.getElementById('statPengeluaran').innerText = rupiah(db.totalPengeluaran);
-      document.getElementById('statRestock').innerText = db.perluRestock.length + ' Item';
+      let totalOmzet = db.penjualan.reduce((a, b) => a + b.total, 0);
+      let totalBeli = db.pembelian.reduce((a, b) => a + b.biaya, 0);
+      let restockList = db.barang.filter(b => b.stok <= b.minStok);
+
+      document.getElementById('statOmzet').innerText = rupiah(totalOmzet);
+      document.getElementById('statPengeluaran').innerText = rupiah(totalBeli);
+      document.getElementById('statRestock').innerText = restockList.length + ' Item';
 
       const elRestock = document.getElementById('listRestock');
-      elRestock.innerHTML = db.perluRestock.length ? '' : '<p class="text-xs text-gray-400">Semua stok aman.</p>';
-      db.perluRestock.forEach(b => {
+      elRestock.innerHTML = restockList.length ? '' : '<p class="text-xs text-gray-400">Semua stok produk aman.</p>';
+      restockList.forEach(b => {
         elRestock.innerHTML += `
           <div class="p-2.5 bg-red-50 border border-red-200 rounded-xl flex justify-between items-center text-xs">
             <div>
@@ -994,9 +948,19 @@
         `;
       });
 
+      // Hitung Trending
+      let freq = {};
+      db.penjualan.forEach(trx => {
+        trx.items.forEach(it => {
+          if (!freq[it.nama]) freq[it.nama] = 0;
+          freq[it.nama] += it.qty;
+        });
+      });
+      let trendingArr = Object.keys(freq).map(k => ({ nama: k, terjual: freq[k] })).sort((a,b) => b.terjual - a.terjual).slice(0,5);
+
       const elTrend = document.getElementById('listTrending');
-      elTrend.innerHTML = db.trending.length ? '' : '<p class="text-xs text-gray-400">Belum ada penjualan.</p>';
-      db.trending.forEach((t, i) => {
+      elTrend.innerHTML = trendingArr.length ? '' : '<p class="text-xs text-gray-400">Belum ada penjualan.</p>';
+      trendingArr.forEach((t, i) => {
         elTrend.innerHTML += `
           <div class="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex justify-between items-center text-xs">
             <span class="font-bold text-gray-800">#${i+1} ${t.nama}</span>
@@ -1006,15 +970,14 @@
       });
 
       const elBaru = document.getElementById('listPenjualanTerbaru');
-      elBaru.innerHTML = db.penjualanTerbaru.length ? '' : '<p class="text-xs text-gray-400">Belum ada transaksi.</p>';
-      db.penjualanTerbaru.forEach(p => {
+      elBaru.innerHTML = db.penjualan.length ? '' : '<p class="text-xs text-gray-400">Belum ada transaksi.</p>';
+      db.penjualan.slice(0, 5).forEach(p => {
         elBaru.innerHTML += `
           <div class="p-2.5 bg-gray-50 border rounded-xl text-xs space-y-1">
             <div class="flex justify-between font-bold">
               <span>${p.id}</span>
               <span class="text-emerald-700">${rupiah(p.total)}</span>
             </div>
-            <p class="text-gray-600 truncate">${p.ringkasan}</p>
             <p class="text-[10px] text-gray-400">${p.waktu} • ${p.metode}</p>
           </div>
         `;
@@ -1040,62 +1003,63 @@
               </span>
             </td>
             <td class="p-2.5">
-              <button onclick='isiEditBarang(${JSON.stringify(b)})' class="text-blue-600 hover:underline font-bold">Edit</button>
+              <button onclick="hapusBarang('${b.kode}')" class="text-red-500 hover:underline font-bold">Hapus</button>
             </td>
           </tr>
         `;
       });
     }
 
-    function isiEditBarang(b) {
-      document.getElementById('brgKode').value = b.kode;
-      document.getElementById('brgNama').value = b.nama;
-      document.getElementById('brgKategori').value = b.kategori;
-      document.getElementById('brgSatuan').value = b.satuan;
-      document.getElementById('brgBeli').value = b.hargaBeli;
-      document.getElementById('brgJual').value = b.hargaJual;
-      document.getElementById('brgStok').value = b.stok;
-      document.getElementById('brgMin').value = b.minStok;
-      document.getElementById('brgKataKunci').value = b.kataKunci || '';
-    }
-
     function simpanMasterBarang() {
       const item = {
-        kode: document.getElementById('brgKode').value,
-        nama: document.getElementById('brgNama').value,
-        kategori: document.getElementById('brgKategori').value,
-        satuan: document.getElementById('brgSatuan').value || 'Bungkus',
-        hargaBeli: document.getElementById('brgBeli').value,
-        hargaJual: document.getElementById('brgJual').value,
-        stok: document.getElementById('brgStok').value,
-        minStok: document.getElementById('brgMin').value,
-        kataKunci: document.getElementById('brgKataKunci').value
+        kode: document.getElementById('brgKode').value.trim(),
+        nama: document.getElementById('brgNama').value.trim(),
+        kategori: document.getElementById('brgKategori').value.trim() || 'Umum',
+        satuan: document.getElementById('brgSatuan').value.trim() || 'Pcs',
+        hargaBeli: Number(document.getElementById('brgBeli').value) || 0,
+        hargaJual: Number(document.getElementById('brgJual').value) || 0,
+        stok: Number(document.getElementById('brgStok').value) || 0,
+        minStok: Number(document.getElementById('brgMin').value) || 5,
+        kataKunci: document.getElementById('brgKataKunci').value.toLowerCase()
       };
-      if (!item.kode || !item.nama) return alert('Kode dan Nama Barang wajib diisi!');
-      google.script.run.withSuccessHandler(res => {
-        alert(res.message);
-        muatDataServer();
-      }).simpanBarangBaru(item);
+      if (!item.kode || !item.nama) return alert('Kode dan Nama Produk wajib diisi!');
+
+      const idx = db.barang.findIndex(b => b.kode === item.kode);
+      if (idx >= 0) {
+        db.barang[idx] = item;
+      } else {
+        db.barang.push(item);
+      }
+      simpanKeStorage();
+      muatDataAplikasi();
+      alert('Produk berhasil disimpan!');
+    }
+
+    function hapusBarang(kode) {
+      if (confirm('Hapus produk ini?')) {
+        db.barang = db.barang.filter(b => b.kode !== kode);
+        simpanKeStorage();
+        muatDataAplikasi();
+      }
     }
 
     function renderFormPembelian() {
       const sel = document.getElementById('beliKodeBarang');
-      sel.innerHTML = '<option value="">-- Pilih Barang --</option>';
+      sel.innerHTML = '<option value="">-- Pilih Produk --</option>';
       db.barang.forEach(b => {
-        sel.innerHTML += `<option value="${b.kode}" data-nama="${b.nama}">${b.kode} - ${b.nama} (Sisa: ${b.stok})</option>`;
+        sel.innerHTML += `<option value="${b.kode}" data-nama="${b.nama}">${b.kode} - ${b.nama}</option>`;
       });
 
       const tbody = document.getElementById('tabelPembelianBody');
       tbody.innerHTML = '';
-      db.historyPembelian.forEach(h => {
+      db.pembelian.forEach(h => {
         tbody.innerHTML += `
           <tr class="hover:bg-gray-50">
             <td class="p-2.5 text-gray-500">${h.waktu}</td>
-            <td class="p-2.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${h.jenis === 'Stok Jualan' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}">${h.jenis}</span></td>
+            <td class="p-2.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">${h.jenis}</span></td>
             <td class="p-2.5 font-bold text-gray-800">${h.namaItem}</td>
             <td class="p-2.5 font-bold">${h.qty}</td>
             <td class="p-2.5 font-bold text-red-600">${rupiah(h.biaya)}</td>
-            <td class="p-2.5 text-gray-600">${h.keterangan}</td>
           </tr>
         `;
       });
@@ -1115,23 +1079,26 @@
     }
 
     function simpanDataPembelian() {
-      const payload = {
-        user: currentUser ? currentUser.nama : 'Admin',
-        jenis: document.getElementById('beliJenis').value,
-        kodeBarang: document.getElementById('beliKodeBarang').value,
-        namaItem: document.getElementById('beliNamaItem').value,
-        qty: document.getElementById('beliQty').value,
-        biaya: document.getElementById('beliBiaya').value,
-        keterangan: document.getElementById('beliKet').value
-      };
-      if (!payload.namaItem || !payload.biaya) return alert('Nama Item dan Total Biaya wajib diisi!');
-      google.script.run.withSuccessHandler(res => {
-        alert(res.message);
-        document.getElementById('beliNamaItem').value = '';
-        document.getElementById('beliBiaya').value = '';
-        document.getElementById('beliKet').value = '';
-        muatDataServer();
-      }).simpanPembelian(payload);
+      const jenis = document.getElementById('beliJenis').value;
+      const kodeBeli = document.getElementById('beliKodeBarang').value;
+      const namaItem = document.getElementById('beliNamaItem').value.trim();
+      const qty = Number(document.getElementById('beliQty').value) || 1;
+      const biaya = Number(document.getElementById('beliBiaya').value) || 0;
+
+      if (!namaItem || !biaya) return alert('Nama item dan biaya wajib diisi!');
+
+      if (jenis === 'Stok Jualan' && kodeBeli) {
+        const p = db.barang.find(b => b.kode === kodeBeli);
+        if (p) p.stok += qty;
+      }
+
+      db.pembelian.unshift({
+        waktu: new Date().toLocaleString('id-ID'),
+        jenis, namaItem, qty, biaya
+      });
+      simpanKeStorage();
+      muatDataAplikasi();
+      alert('Pembelian berhasil dicatat!');
     }
   </script>
 </body>
