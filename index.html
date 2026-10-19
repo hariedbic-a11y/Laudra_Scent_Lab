@@ -72,11 +72,11 @@
       <div class="space-y-4">
         <div>
           <label class="text-xs font-bold text-gray-600 uppercase tracking-wide">Username</label>
-          <input type="text" id="loginUser" placeholder="Masukkan username..." class="w-full mt-1.5 p-3.5 border rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm bg-gray-50/50">
+          <input type="text" id="loginUser" placeholder="Masukkan username..." onkeydown="handleLoginEnter(event)" class="w-full mt-1.5 p-3.5 border rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm bg-gray-50/50">
         </div>
         <div>
           <label class="text-xs font-bold text-gray-600 uppercase tracking-wide">Password</label>
-          <input type="password" id="loginPass" placeholder="Masukkan password..." class="w-full mt-1.5 p-3.5 border rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm bg-gray-50/50">
+          <input type="password" id="loginPass" placeholder="Masukkan password..." onkeydown="handleLoginEnter(event)" class="w-full mt-1.5 p-3.5 border rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm bg-gray-50/50">
         </div>
         <button onclick="prosesLogin()" id="btnLogin" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-emerald-600/30 transition transform active:scale-95">
           Loggin
@@ -172,7 +172,7 @@
     </div>
   </header>
 
-  <!-- ================= 4. NAVIGASI MENU (URUTAN BARU) ================= -->
+  <!-- ================= 4. NAVIGASI MENU ================= -->
   <nav class="bg-white shadow-sm border-b sticky top-[57px] z-20 overflow-x-auto">
     <div class="flex space-x-1 p-1.5 max-w-7xl mx-auto">
       <button onclick="bukaTab('tabKasir', this)" class="nav-btn active-nav flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 whitespace-nowrap text-gray-600">
@@ -626,6 +626,13 @@
       localStorage.setItem('lsl_draft_keranjang', JSON.stringify(keranjang));
     }
 
+    // Fungsi trigger Enter pada keyboard saat login
+    function handleLoginEnter(event) {
+      if (event.key === 'Enter') {
+        prosesLogin();
+      }
+    }
+
     function simpanDraftManual() {
       simpanKeStorage();
       alert('Draf keranjang berhasil disimpan! Anda dapat meninggalkan menu atau kembali kapan saja tanpa kehilangan data.');
@@ -654,7 +661,7 @@
       btn.innerText = 'Memeriksa...';
 
       setTimeout(() => {
-        btn.innerText = 'Masuk Aplikasi Kasir';
+        btn.innerText = 'Loggin';
         if (u === 'admin' && p === '*Hs69d002') {
           currentUser = { username: 'admin', nama: 'Pemilik Toko (Admin)', role: 'Admin' };
           document.getElementById('loginPage').classList.add('hidden');
@@ -1019,8 +1026,8 @@
       };
 
       db.penjualan.unshift(transaksiBaru);
-      transaksiTerakhirDraf = [...keranjang]; // simpan cadangan draf
-      keranjang = []; // kosongkan keranjang aktif
+      transaksiTerakhirDraf = [...keranjang]; 
+      keranjang = []; 
       simpanKeStorage();
 
       tampilkanStruk(transaksiBaru);
