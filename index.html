@@ -513,47 +513,47 @@
       scanMasukSatuBarang(randomItem.kode);
     }
 
-   // --- PERBAIKAN AKURASI SCAN OCR AI ---
     async function bacaTeksKemasanOCR() {
       const video = document.getElementById('videoCam');
       const canvas = document.getElementById('canvasCam');
       const statusEl = document.getElementById('statusScanTeks');
       if (!video.srcObject) return jepretDeteksiBarang();
       
-      statusEl.innerText = 'Membaca teks kemasan di kotak tengah...';
+      statusEl.innerText = 'Menganalisis kemasan...';
       
-      // Ambil area fokus di tengah video (reticle box) agar tidak membaca teks di luar kotak
       let vW = video.videoWidth || 640;
       let vH = video.videoHeight || 480;
-      canvas.width = 300;
-      canvas.height = 300;
+      canvas.width = 400;
+      canvas.height = 400;
       let ctx = canvas.getContext('2d');
       
-      // Crop bagian tengah video tempat kemasan dipegang
-      let cropSize = Math.min(vW, vH) * 0.6;
+      // Fokus tangkapan pada kotak tengah (reticle box)
+      let cropSize = Math.min(vW, vH) * 0.5;
       let startX = (vW - cropSize) / 2;
       let startY = (vH - cropSize) / 2;
-      ctx.drawImage(video, startX, startY, cropSize, cropSize, 0, 0, 300, 300);
+      ctx.drawImage(video, startX, startY, cropSize, cropSize, 0, 0, 400, 400);
       
       try {
         const result = await Tesseract.recognize(canvas, 'ind+eng');
-        const teksTerbaca = (result.data.text || '').toLowerCase().replace(/[^a-z0-9\s]/g, '');
+        const teksTerbaca = (result.data.text || '').toLowerCase();
         
-        // Cari produk berdasarkan kecocokan kata kunci kemasan di database
+        // Pencarian produk yang ketat berdasarkan kata kunci di database
         let cocok = db.barang.find(b => {
           let keys = (b.kataKunci || b.nama).toLowerCase().split(',');
-          return keys.some(k => k.trim() && teksTerbaca.includes(k.trim()));
+          return keys.some(k => {
+            let keyword = k.trim();
+            return keyword.length > 2 && teksTerbaca.includes(keyword);
+          });
         });
 
         if (cocok) {
           scanMasukSatuBarang(cocok.kode);
-          statusEl.innerText = '✓ Ditemukan: ' + cocok.nama;
+          statusEl.innerText = '✓ Berhasil: ' + cocok.nama;
         } else {
-          statusEl.innerText = 'Teks tidak dikenali ("' + teksTerbaca.substring(0, 15) + '..."). Coba posisikan lebih pas di tengah.';
+          statusEl.innerText = 'Teks tidak cocok di DB. Coba dekatkan lagi.';
         }
       } catch (e) {
-        statusEl.innerText = 'Gagal membaca teks. Silakan ketuk tombol petir kuning.';
-        jepretDeteksiBarang();
+        statusEl.innerText = 'Gagal membaca teks kemasan.';
       }
     }
 
