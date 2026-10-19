@@ -1,17 +1,17 @@
 {
-  "name": "Loundra Scent Lab - Sistem Kasir & Manajemen",
-  "short_name": "Loundra Scent",
-  "description": "Pusat Pewangi, Sabun Pakaian & Pembersih Kendaraan Terintegrasi Google Sheets.",
-  "start_url": "./index.html",
-  "scope": "./",
-  "display": "standalone",
-  "background_color": "#0f766e",
-  "theme_color": "#0d9488",
-  "icons": [
-    {
-      "src": "icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
-    }
-  ]
+"name": "Loundra Scent Lab Kasir Pintar",
+"short_name": "Loundra Scent",
+"start_url": "/",
+"display": "standalone",
+"background_color": "#065f46",
+"theme_color": "#059669",
+"description": "Sistem Kasir AI Pintar untuk Pewangi & Sabun Baju serta Kendaraan",
+"icons": [
+{
+"src": "/icon.svg",
+"sizes": "any",
+"type": "image/svg+xml",
+"purpose": "any maskable"
+}
+]
 }
