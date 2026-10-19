@@ -45,7 +45,7 @@
   <!-- LOADING OVERLAY -->
   <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden flex items-center justify-center text-white text-xs font-bold space-x-2">
     <i class="fa-solid fa-spinner fa-spin text-xl text-teal-400"></i>
-    <span>Menyelaraskan dengan GS...</span>
+    <span>Menyelaraskan Database</span>
   </div>
 
   <!-- ================= 1. HALAMAN LOGIN ================= -->
@@ -118,7 +118,7 @@
           <!-- Indikator Koneksi Google Sheets -->
           <div class="flex items-center space-x-1.5 mt-0.5">
             <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span class="text-[10px] text-teal-200 font-medium">GS Database Connected</span>
+            <span class="text-[10px] text-teal-200 font-medium">Database Connected</span>
           </div>
         </div>
       </div>
@@ -171,7 +171,7 @@
     <header class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-20 shadow-xs">
       <div>
         <h2 id="judulHeaderAktif" class="text-base font-extrabold text-slate-800">Pusat Kasir & Penjualan</h2>
-        <p class="text-xs text-slate-500">Kelola transaksi, stok, dan laporan langsung terhubung ke GS</p>
+        <p class="text-xs text-slate-500">Kelola transaksi, stok, dan laporan langsung terhubung ke Database</p>
       </div>
       <div class="flex items-center space-x-3">
         <div class="hidden sm:flex items-center bg-slate-100 rounded-2xl px-3.5 py-2 border border-slate-200 w-64">
@@ -254,7 +254,7 @@
               </div>
 
               <button onclick="prosesTransaksi()" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-teal-600/3+ transition text-xs">
-                Simpan Transaksi & Sinkron GS
+                Simpan Transaksi & Cetak
               </button>
             </div>
           </div>
@@ -285,7 +285,7 @@
           </div>
         </div>
         <div class="lg:col-span-8 bg-white p-5 rounded-3xl shadow-sm border border-slate-200">
-          <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-slate-800 text-sm">Stok Database GS</h3><input type="text" id="cariTabelStok" oninput="renderTabelStok()" placeholder="Cari..." class="p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50"></div>
+          <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-slate-800 text-sm">Stok Database</h3><input type="text" id="cariTabelStok" oninput="renderTabelStok()" placeholder="Cari..." class="p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50"></div>
           <div class="overflow-x-auto"><table class="w-full text-left border-collapse text-xs"><thead><tr class="bg-slate-100 text-slate-600 uppercase"><th class="p-3">Kode</th><th class="p-3">Nama</th><th class="p-3">Harga Jual</th><th class="p-3">Stok</th><th class="p-3">Status</th></tr></thead><tbody id="tabelStokBody" class="divide-y divide-slate-100"></tbody></table></div>
         </div>
       </section>
@@ -396,7 +396,7 @@
         db = resJson;
         muatAntarmuka();
       } catch (e) {
-        alert("Gagal sinkron GS: " + e.message);
+        alert("Gagal sinkron Database: " + e.message);
       } finally {
         tampilkanLoading(false);
       }
