@@ -58,7 +58,7 @@
           </svg>
         </div>
         <h1 class="text-xl font-extrabold text-slate-800">Loundra Scent Lab</h1>
-        <p class="text-xs text-slate-500 mt-1">Sistem Kasir Pintar & Database Google Sheets</p>
+        <p class="text-xs text-slate-500 mt-1">Sistem Kasir Pintar</p>
       </div>
       <div class="space-y-4">
         <div>
@@ -171,7 +171,7 @@
     <header class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-20 shadow-xs">
       <div>
         <h2 id="judulHeaderAktif" class="text-base font-extrabold text-slate-800">Pusat Kasir & Penjualan</h2>
-        <p class="text-xs text-slate-500">Kelola transaksi, stok, dan laporan langsung terhubung ke Google Sheets</p>
+        <p class="text-xs text-slate-500">Kelola transaksi, stok, dan laporan langsung terhubung ke GS</p>
       </div>
       <div class="flex items-center space-x-3">
         <div class="hidden sm:flex items-center bg-slate-100 rounded-2xl px-3.5 py-2 border border-slate-200 w-64">
@@ -396,7 +396,7 @@
         db = resJson;
         muatAntarmuka();
       } catch (e) {
-        alert("Gagal sinkron Google Sheets: " + e.message);
+        alert("Gagal sinkron GS: " + e.message);
       } finally {
         tampilkanLoading(false);
       }
@@ -578,7 +578,7 @@
 
     async function simpanMasterBarang() {
       await kirimDataKeServer('simpanBarangBaru', { kode: document.getElementById('brgKode').value, nama: document.getElementById('brgNama').value, hargaJual: Number(document.getElementById('brgJual').value)||25000, stok: Number(document.getElementById('brgStok').value)||20 });
-      alert('Produk berhasil disimpan ke Google Sheets!');
+      alert('Produk berhasil disimpan ke Database!');
     }
 
     function renderFormPembelian() {}
