@@ -3,14 +3,6 @@
   "cleanUrls": true,
   "routes": [
     {
-      "src": "/manifest.webmanifest",
-      "dest": "/manifest.webmanifest"
-    },
-    {
-      "src": "/icon.svg",
-      "dest": "/icon.svg"
-    },
-    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
